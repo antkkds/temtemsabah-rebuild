@@ -1,0 +1,175 @@
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@200;300;400;500;600;700&family=Prata&family=Inter:wght@400;500;600&display=swap');
+
+/* ── Base Styles ── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Work Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #000;
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.has-text-align-center {
+  text-align: center;
+}
+
+/* ── Navbar ── */
+.site-header {
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.site-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.site-logo img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.site-title {
+  font-family: 'Prata', serif;
+  font-size: 1.25rem;
+  color: #00373e;
+}
+
+.nav-list {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  list-style: none;
+}
+
+.nav-link {
+  display: block;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  color: #333;
+  border-radius: 0.5rem;
+  transition: background 0.15s;
+}
+
+.nav-link:hover {
+  background: #f5f5f5;
+  color: #00373e;
+}
+
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: #00373e;
+}
+
+/* ── Responsive ── */
+@media (max-width: 767.5px) {
+  .nav-list { display: none; }
+  .mobile-menu-btn { display: block; }
+  
+  /* Hero */
+  .hero-cover { min-height: 60vh !important; }
+  
+  /* Features: stack vertically */
+  .features-grid { grid-template-columns: 1fr !important; }
+  
+  /* Mission: stack vertically */
+  .mission-grid { grid-template-columns: 1fr !important; }
+  
+  /* Team: 2 columns on tablet, 1 on mobile */
+  .team-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  
+  /* Contact: stack vertically */
+  .contact-grid { grid-template-columns: 1fr !important; }
+  
+  /* Section padding reduce */
+  .section-mobile-padding { padding-top: 60px !important; padding-bottom: 60px !important; }
+}
+
+@media (max-width: 480px) {
+  .team-grid { grid-template-columns: 1fr !important; }
+  .team-photo { width: 150px !important; }
+}
+
+.mobile-menu-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 40;
+}
+
+.mobile-menu-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 280px;
+  height: 100vh;
+  background: #fff;
+  z-index: 50;
+  box-shadow: -4px 0 20px rgba(0,0,0,0.1);
+  padding: 2rem;
+}
+
+/* ── Contact Form ── */
+.form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  font-family: 'Work Sans', sans-serif;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #000;
+}
+
+/* ── Footer ── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}

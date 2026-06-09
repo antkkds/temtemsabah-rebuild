@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TemTemSabah — Preview Dashboard</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0f1219; color: #e0e6ed; }
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.75rem 1.5rem; background: #1a1f2e; border-bottom: 1px solid #2a3040;
+}
+.header h1 { font-size: 1rem; font-weight: 600; }
+.header .status { font-size: 0.75rem; color: #7fd962; }
+.viewport-tabs {
+  display: flex; gap: 0.5rem; align-items: center;
+}
+.viewport-btn {
+  padding: 0.4rem 1rem; border-radius: 6px; border: 1px solid #2a3040;
+  background: transparent; color: #9ca3af; cursor: pointer; font-size: 0.8rem;
+  transition: all 0.15s;
+}
+.viewport-btn.active { background: #00373e; color: white; border-color: #00373e; }
+.viewport-btn:hover { background: #2a3040; }
+
+.main-panel { display: flex; height: calc(100vh - 52px); }
+.preview-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow: auto; }
+.device-frame {
+  background: #000; border-radius: 12px; overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5); transition: all 0.3s;
+  position: relative;
+}
+.device-frame iframe { border: none; display: block; background: white; }
+.device-frame.desktop { width: 1280px; height: 800px; }
+.device-frame.desktop iframe { width: 1280px; height: 800px; }
+.device-frame.tablet { width: 768px; height: 1024px; border-radius: 20px; }
+.device-frame.tablet iframe { width: 768px; height: 1024px; }
+.device-frame.mobile { width: 375px; height: 812px; border-radius: 30px; }
+.device-frame.mobile iframe { width: 375px; height: 812px; }
+
+.sidebar {
+  width: 340px; background: #1a1f2e; border-left: 1px solid #2a3040;
+  padding: 1.25rem; overflow-y: auto; font-size: 0.85rem;
+}
+.sidebar h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; margin-bottom: 1rem; }
+.file-list { list-style: none; }
+.file-list li { margin-bottom: 0.5rem; }
+.file-list a {
+  display: block; padding: 0.5rem 0.75rem; border-radius: 6px;
+  color: #9ca3af; text-decoration: none; font-size: 0.8rem;
+  transition: background 0.15s;
+}
+.file-list a:hover { background: #2a3040; color: #e0e6ed; }
+.file-list a .path { color: #6b7280; font-size: 0.7rem; }
+.edit-note {
+  margin-top: 1rem; padding: 0.75rem; border-radius: 6px;
+  background: #0f1219; border: 1px solid #2a3040; font-size: 0.75rem; line-height: 1.5;
+  color: #9ca3af;
+}
+.edit-note strong { color: #e0e6ed; }
+.quick-edit { margin-top: 1rem; }
+.quick-edit label { display: block; margin-bottom: 0.25rem; color: #9ca3af; font-size: 0.75rem; }
+.quick-edit input, .quick-edit textarea {
+  width: 100%; padding: 0.5rem; border-radius: 6px; border: 1px solid #2a3040;
+  background: #0f1219; color: #e0e6ed; font-size: 0.8rem; margin-bottom: 0.75rem;
+  font-family: monospace;
+}
+.quick-edit button {
+  padding: 0.5rem 1rem; border-radius: 6px; border: none;
+  background: #00373e; color: white; cursor: pointer; font-size: 0.8rem;
+}
+.quick-edit button:hover { background: #004a52; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <h1>Tem Tem Sabah — Live Preview</h1>
+    <span class="status">● Dev server running (HMR active)</span>
+  </div>
+  <div class="viewport-tabs">
+    <button class="viewport-btn active" data-view="desktop" onclick="switchView('desktop')">🖥 Desktop</button>
+    <button class="viewport-btn" data-view="tablet" onclick="switchView('tablet')">📱 Tablet</button>
+    <button class="viewport-btn" data-view="mobile" onclick="switchView('mobile')">📱 Mobile</button>
+  </div>
+</div>
+
+<div class="main-panel">
+  <div class="preview-area">
+    <div class="device-frame desktop" id="deviceFrame">
+      <iframe src="http://localhost:5174/" id="previewFrame"></iframe>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h3>📂 Project Files</h3>
+    <ul class="file-list">
+      <li><a href="#" onclick="openFile('content.js')">📄 Content Data <span class="path">src/data/content.js</span></a></li>
+      <li><a href="#" onclick="openFile('Hero.jsx')">📄 Hero Section <span class="path">src/components/Hero.jsx</span></a></li>
+      <li><a href="#" onclick="openFile('Mission.jsx')">📄 Mission + Gallery <span class="path">src/components/Mission.jsx</span></a></li>
+      <li><a href="#" onclick="openFile('Team.jsx')">📄 Team + Welcome <span class="path">src/components/Team.jsx</span></a></li>
+      <li><a href="#" onclick="openFile('Contact.jsx')">📄 Contact <span class="path">src/components/Contact.jsx</span></a></li>
+      <li><a href="#" onclick="openFile('Footer.jsx')">📄 Footer <span class="path">src/components/Footer.jsx</span></a></li>
+      <li><a href="#" onclick="openFile('index.css')">📄 Styles <span class="path">src/index.css</span></a></li>
+    </ul>
+
+    <div class="edit-note">
+      <strong>✏️ Live Editing</strong><br>
+      Edit any file in <code>~/website-hongxin/temtemsabah-rebuild/src/</code><br>
+      Changes appear instantly via HMR — no reload needed.<br><br>
+      <strong>Quick edit text:</strong> Edit <code>src/data/content.js</code> for all site text, team, contact info, images.
+    </div>
+
+    <div class="quick-edit">
+      <h3 style="font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;color:#6b7280;margin-bottom:0.75rem;">⚡ Quick Edit</h3>
+      <form id="quickEditForm" onsubmit="return quickSave(event)">
+        <label for="qe-headline">Hero Headline</label>
+        <input type="text" id="qe-headline" value="Delicious Tempeh Chips From Land Below The Wind">
+        
+        <label for="qe-subline">Subheadline</label>
+        <input type="text" id="qe-subline" value="MALAYSIA . SINGAPORE . BRUNEI . TAIWAN">
+        
+        <label for="qe-tagline">Tagline</label>
+        <input type="text" id="qe-tagline" value="Mum Approved Snacks">
+        
+        <label for="qe-vision">Vision Statement</label>
+        <textarea id="qe-vision" rows="2">Crafting The Brand &amp; Choice of Snacks That People Always Come Back For More</textarea>
+        
+        <label for="qe-mission">Mission Statement</label>
+        <textarea id="qe-mission" rows="2">To Produce Tempeh Chips At Highest Quality &amp; Provide Great Returns For Shareholders</textarea>
+        
+        <label for="qe-phone">Phone</label>
+        <input type="text" id="qe-phone" value="+6012-2277363">
+        
+        <label for="qe-email">Email</label>
+        <input type="text" id="qe-email" value="info@temtemsabah.com">
+        
+        <label for="qe-address">Address</label>
+        <textarea id="qe-address" rows="2">Lot 2 &amp; Lot 3, Lorong Buah Sukun 1, SEDCO Light Industrial, Jalan Tuaran Inanam, 88450 Kota Kinabalu, Sabah, Malaysia</textarea>
+        
+        <button type="submit">💾 Save Changes &amp; Reload</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchView(view) {
+  const frame = document.getElementById('deviceFrame');
+  const btns = document.querySelectorAll('.viewport-btn');
+  btns.forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-view="${view}"]`).classList.add('active');
+  frame.className = 'device-frame ' + view;
+}
+
+function openFile(name) {
+  const files = {
+    'content.js': '/src/data/content.js',
+    'Hero.jsx': '/src/components/Hero.jsx',
+    'Mission.jsx': '/src/components/Mission.jsx',
+    'Team.jsx': '/src/components/Team.jsx',
+    'Contact.jsx': '/src/components/Contact.jsx',
+    'Footer.jsx': '/src/components/Footer.jsx',
+    'index.css': '/src/index.css',
+  };
+  // Copy path to clipboard
+  const path = '~/website-hongxin/temtemsabah-rebuild' + files[name];
+  navigator.clipboard.writeText(path).then(() => {
+    alert('File path copied to clipboard:\n' + path);
+  });
+}
+
+function quickSave(e) {
+  e.preventDefault();
+  alert('Quick edit saves to content.js via an API.\nFor now, edit ~/website-hongxin/temtemsabah-rebuild/src/data/content.js directly and HMR will reload automatically.');
+  return false;
+}
+</script>
+</body>
+</html>
