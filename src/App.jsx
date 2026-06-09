@@ -10,7 +10,7 @@ import InternalArticlePage from './pages/InternalArticlePage';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/temtemsabah">
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex-1">
