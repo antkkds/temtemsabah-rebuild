@@ -272,13 +272,34 @@ function ArticleForm({ article, onSave, onCancel }) {
 
   // Auto Generate from URL
   const autoGenerate = async () => {
-    if (!autoUrl.trim()) return;
+    let urlToFetch = autoUrl.trim();
+    if (!urlToFetch) return;
+    
+    // Detect Facebook embed code and extract URL
+    const fbEmbedMatch = urlToFetch.match(/data-href=["'](https:\/\/[^"']*facebook\.com[^"']*)["']/i);
+    const fbIframeMatch = urlToFetch.match(/href=https?%3A%2F%2F([^&]*facebook\.com[^&]*)&/i);
+    const fbEmbedBlockquote = urlToFetch.match(/<blockquote[^>]*cite=["'](https:\/\/[^"']*facebook\.com[^"']*)["']/i);
+    
+    if (fbEmbedMatch) {
+      urlToFetch = fbEmbedMatch[1];
+    } else if (fbIframeMatch) {
+      urlToFetch = decodeURIComponent(fbIframeMatch[1]);
+    } else if (fbEmbedBlockquote) {
+      urlToFetch = fbEmbedBlockquote[1];
+    }
+    
+    // If it's still HTML but no FB URL found, try to extract any URL
+    if (!urlToFetch.startsWith('http')) {
+      const anyUrl = urlToFetch.match(/https?:\/\/[^\s"'<>]+/);
+      if (anyUrl) urlToFetch = anyUrl[0];
+    }
+    
     setAutoLoading(true);
     try {
       const resp = await fetch('http://127.0.0.1:3456/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: autoUrl.trim() }),
+        body: JSON.stringify({ url: urlToFetch }),
       });
       const data = await resp.json();
       if (data.ok && data.meta) {
@@ -289,11 +310,13 @@ function ArticleForm({ article, onSave, onCancel }) {
         if (m.image) setE(prev => ({ ...prev, featured_image: m.image }));
         if (m.site_name) setE(prev => ({ ...prev, source: m.site_name }));
         // Set URL field based on content type
-        const url = autoUrl.trim();
-        if (url.includes('facebook.com') || url.includes('fb.com')) {
-          setE(prev => ({ ...prev, content_type: 'facebook', facebook_url: url, category: 'Facebook Updates' }));
+        const url = autoUrl.trim();  // Keep the original input (embed or URL) as reference
+        
+        // Detect if embed code or Facebook URL
+        if (url.includes('facebook.com') || url.includes('fb.com') || url.includes('data-href=') || url.includes('fb-post')) {
+          setE(prev => ({ ...prev, content_type: 'facebook', facebook_url: urlToFetch, category: 'Facebook Updates' }));
         } else {
-          setE(prev => ({ ...prev, content_type: 'external', external_url: url, category: 'External News' }));
+          setE(prev => ({ ...prev, content_type: 'external', external_url: urlToFetch, category: 'External News' }));
         }
         setFormMsg('✅ Auto-generated!');
         setTimeout(() => setFormMsg(''), 2000);
@@ -333,7 +356,7 @@ function ArticleForm({ article, onSave, onCancel }) {
           <input
             value={autoUrl}
             onChange={e => setAutoUrl(e.target.value)}
-            placeholder="https://www.theborneopost.com/... or https://www.facebook.com/..."
+            placeholder="Paste article URL or Facebook embed code..."
             style={{ ...inp, flex: 1, fontSize: '0.8rem' }}
             onKeyDown={e => e.key === 'Enter' && autoGenerate()}
           />
