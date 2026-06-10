@@ -277,15 +277,22 @@ function ArticleForm({ article, onSave, onCancel }) {
     
     // Detect Facebook embed code and extract URL
     const fbEmbedMatch = urlToFetch.match(/data-href=["'](https:\/\/[^"']*facebook\.com[^"']*)["']/i);
-    const fbIframeMatch = urlToFetch.match(/href=https?%3A%2F%2F([^&]*facebook\.com[^&]*)&/i);
+    const fbIframeMatch = urlToFetch.match(/href=(https?%3A%2F%2F[^&]*facebook[^&]*)&/i);
     const fbEmbedBlockquote = urlToFetch.match(/<blockquote[^>]*cite=["'](https:\/\/[^"']*facebook\.com[^"']*)["']/i);
     
     if (fbEmbedMatch) {
       urlToFetch = fbEmbedMatch[1];
     } else if (fbIframeMatch) {
+      // Decode the URL-encoded Facebook URL from the iframe src
       urlToFetch = decodeURIComponent(fbIframeMatch[1]);
     } else if (fbEmbedBlockquote) {
       urlToFetch = fbEmbedBlockquote[1];
+    }
+    
+    // If input contains src="https://... extract that URL for non-embeds
+    if (!urlToFetch.startsWith('http') && urlToFetch.includes('src="')) {
+      const srcMatch = urlToFetch.match(/src=["'](https?:\/\/[^"']*)["']/i);
+      if (srcMatch) urlToFetch = srcMatch[1];
     }
     
     // If it's still HTML but no FB URL found, try to extract any URL
@@ -306,7 +313,11 @@ function ArticleForm({ article, onSave, onCancel }) {
         const m = data.meta;
         // Auto-fill fields
         if (m.title) handleTitle(m.title);
-        if (m.description) setE(prev => ({ ...prev, excerpt: m.description, seo_description: m.description }));
+        if (m.description) {
+          // Truncate excerpt to ~200 chars for clean summary
+          const excerpt = m.description.length > 200 ? m.description.substring(0, 197) + '...' : m.description;
+          setE(prev => ({ ...prev, excerpt, seo_description: m.description }));
+        }
         if (m.image) setE(prev => ({ ...prev, featured_image: m.image }));
         if (m.site_name) setE(prev => ({ ...prev, source: m.site_name }));
         // Set URL field based on content type

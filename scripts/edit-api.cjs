@@ -193,6 +193,28 @@ const server = http.createServer(async (req, res) => {
             if (metaDesc) meta.description = metaDesc[1];
           }
 
+          // Clean up extracted text — decode HTML entities, remove raw newlines
+          const cleanText = (str) => {
+            if (!str) return '';
+            // Decode HTML entities (&#x...; and &#...;)
+            return str
+              .replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCodePoint(parseInt(h, 16)))
+              .replace(/&#(\d+);/g, (m, c) => String.fromCodePoint(parseInt(c, 10)))
+              .replace(/&amp;/g, '&')
+              .replace(/&quot;/g, '"')
+              .replace(/&#39;/g, "'")
+              .replace(/&apos;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>')
+              .replace(/\\n/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+          };
+
+          meta.title = cleanText(meta.title);
+          meta.description = cleanText(meta.description);
+          meta.site_name = cleanText(meta.site_name);
+
           // For Facebook URLs, special handling
           if (url.includes('facebook.com') || url.includes('fb.com')) {
             meta.site_name = 'Facebook';
