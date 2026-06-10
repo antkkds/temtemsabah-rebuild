@@ -12,6 +12,7 @@ const NAV_ITEMS = [
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const currentPath = location.hash ? location.hash.replace('#', '') : location.pathname;
 
   return (
     <header className="wp-block-template-part">
@@ -36,7 +37,7 @@ export default function Header() {
           {/* Logo + Site Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div className="wp-block-site-logo is-default-size">
-              <Link to="/" className="custom-logo-link" aria-current={location.pathname === '/' ? 'page' : undefined}>
+              <Link to="/" className="custom-logo-link" aria-current={currentPath === '/' ? 'page' : undefined}>
                 <img
                   width="305"
                   height="305"
@@ -65,7 +66,7 @@ export default function Header() {
               <Link
                 to="/"
                 style={{ color: '#00373e', textDecoration: 'none' }}
-                aria-current={location.pathname === '/' ? 'page' : undefined}
+                aria-current={currentPath === '/' ? 'page' : undefined}
               >
                 Tem Tem Sabah
               </Link>
@@ -95,7 +96,7 @@ export default function Header() {
               {NAV_ITEMS.map((item) => (
                 <li
                   key={item.label}
-                  className={`wp-block-navigation-item ${location.pathname === item.href ? 'current-menu-item' : ''}`}
+                  className={`wp-block-navigation-item ${currentPath === item.href ? 'current-menu-item' : ''}`}
                   style={{ position: 'relative' }}
                 >
                   {item.href.startsWith('/') ? (
@@ -106,12 +107,12 @@ export default function Header() {
                         display: 'block',
                         padding: '0.5rem 1rem',
                         fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.227), 16px)',
-                        color: location.pathname === item.href ? '#00373e' : '#333',
+                        color: currentPath === item.href ? '#00373e' : '#333',
                         textDecoration: 'none',
                         borderRadius: '0.5rem',
                         transition: 'background 0.15s',
                       }}
-                      aria-current={location.pathname === item.href ? 'page' : undefined}
+                      aria-current={currentPath === item.href ? 'page' : undefined}
                     >
                       <span className="wp-block-navigation-item__label">{item.label}</span>
                     </Link>
@@ -196,7 +197,7 @@ export default function Header() {
                         display: 'block',
                         padding: '0.75rem 1rem',
                         fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.227), 16px)',
-                        color: location.pathname === item.href ? '#00373e' : '#333',
+                        color: currentPath === item.href ? '#00373e' : '#333',
                         textDecoration: 'none',
                         borderRadius: '0.5rem',
                       }}

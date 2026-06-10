@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { HashRouter, Routes, Route, Link } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -10,7 +10,7 @@ import InternalArticlePage from './pages/InternalArticlePage';
 
 export default function App() {
   return (
-    <BrowserRouter basename="/temtemsabah">
+    <HashRouter>
       <div className="min-h-screen flex flex-col">
         <Header />
         <div className="flex-1">
@@ -53,6 +53,6 @@ export default function App() {
           ⚙
         </Link>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
