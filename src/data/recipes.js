@@ -135,7 +135,8 @@ export const RECIPES = [
       "Preheat air fryer to 190°C.",
       "Air fry 10 minutes, shake basket halfway, until golden brown and crispy."
     ],
-    "equipment": "Air Fryer"
+    "equipment": "Air Fryer",
+    "video": "https://www.tiktok.com/@temtemsabah_keropoktempe/video/7624080556375936273"
   },
   {
     "id": "pansoh-buluh-tempeh",
@@ -231,7 +232,8 @@ export const RECIPES = [
       "Place over open fire or grill, rotating occasionally.",
       "Cook for 45 minutes until fragrant and cooked through.",
       "Split bamboo open to serve."
-    ]
+    ],
+    "video": "https://www.tiktok.com/@temtemsabah_keropoktempe/video/7620787225512381712"
   },
   {
     "id": "japanese-mayo-tempeh",

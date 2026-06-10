@@ -80,7 +80,13 @@ export function RecipeDetailModal({ recipe, onClose }) {
 
 export function VideoModal({ videoUrl, onClose }) {
   if (!videoUrl) return null;
-  const embedUrl = videoUrl.startsWith('http') ? videoUrl : 'https://www.tiktok.com/embed/v2/' + videoUrl;
+  // Extract video ID from TikTok URL for proper embed format
+  const getId = (url) => {
+    const m = url.match(/\/video\/(\d+)/);
+    return m ? m[1] : null;
+  };
+  const videoId = getId(videoUrl);
+  const embedUrl = videoId ? 'https://www.tiktok.com/embed/v2/' + videoId : null;
   return (
     <div onClick={onClose} style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -94,14 +100,17 @@ export function VideoModal({ videoUrl, onClose }) {
           background: 'none', border: 'none', color: '#fff',
           fontSize: '1.5rem', cursor: 'pointer',
         }}>&#10005;</button>
-        <div style={{ position: 'relative', paddingBottom: '177.77%', height: 0, overflow: 'hidden', borderRadius: 12 }}>
-          <iframe
-            src={embedUrl}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-            allow="autoplay; encrypted-media"
-            allowFullScreen
-          />
-        </div>
+        {embedUrl ? (
+          <div style={{ position: 'relative', paddingBottom: '177.77%', height: 0, overflow: 'hidden', borderRadius: 12 }}>
+            <iframe src={embedUrl}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+              allow="autoplay; encrypted-media" allowFullScreen />
+          </div>
+        ) : (
+          <p style={{ color: '#f26d78', textAlign: 'center', padding: '2rem' }}>
+            Unable to load video. Invalid TikTok URL.
+          </p>
+        )}
         <p style={{ color: '#9ca3af', fontSize: '0.8rem', textAlign: 'center', marginTop: '0.5rem' }}>
           <a href={videoUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#59c2ff' }}>
             Open on TikTok &#8594;
