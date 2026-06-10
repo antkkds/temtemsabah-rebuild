@@ -163,31 +163,33 @@ export default function Header() {
       {/* Mobile Menu */}
       {menuOpen && (
         <>
+          {/* Overlay backdrop */}
           <div
-            className="mobile-menu-overlay"
             onClick={() => setMenuOpen(false)}
             style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              zIndex: 40,
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0,0,0,0.3)', zIndex: 40,
+              animation: 'fadeIn 0.2s ease',
             }}
           />
+          {/* Animated dropdown panel */}
           <div
-            className="mobile-menu-panel"
             style={{
-              position: 'fixed',
-              top: 0,
-              right: 0,
-              width: 280,
-              height: '100vh',
-              background: '#fff',
-              zIndex: 50,
+              position: 'fixed', top: 0, right: 0, bottom: 0, width: '75%', maxWidth: 320,
+              background: '#fff', zIndex: 50,
               boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
               padding: '2rem',
+              animation: 'slideInRight 0.25s ease',
             }}
           >
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+              <button onClick={() => setMenuOpen(false)} style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#333'
+              }}>
+                <X size={24} />
+              </button>
+            </div>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
               {NAV_ITEMS.map((item) => (
                 <li key={item.label}>
                   {item.href.startsWith('/') ? (
@@ -197,11 +199,16 @@ export default function Header() {
                       style={{
                         display: 'block',
                         padding: '0.75rem 1rem',
-                        fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.227), 16px)',
-                        color: currentPath === item.href ? '#00373e' : '#333',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        color: currentPath === item.href ? '#00373e' : '#1a1a2e',
                         textDecoration: 'none',
                         borderRadius: '0.5rem',
+                        background: currentPath === item.href ? '#e8f4f5' : 'transparent',
+                        transition: 'background 0.15s',
                       }}
+                      onMouseOver={e => e.currentTarget.style.background = '#f5f5f5'}
+                      onMouseOut={e => e.currentTarget.style.background = currentPath === item.href ? '#e8f4f5' : 'transparent'}
                     >
                       {item.label}
                     </Link>
@@ -212,8 +219,9 @@ export default function Header() {
                       style={{
                         display: 'block',
                         padding: '0.75rem 1rem',
-                        fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.227), 16px)',
-                        color: '#333',
+                        fontSize: '1rem',
+                        fontWeight: 700,
+                        color: '#1a1a2e',
                         textDecoration: 'none',
                         borderRadius: '0.5rem',
                       }}
