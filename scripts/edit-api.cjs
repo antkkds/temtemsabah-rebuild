@@ -6,6 +6,7 @@ const path = require('path');
 const RECIPES_FILE = path.join(__dirname, '..', 'src', 'data', 'recipes.js');
 const NEWSROOM_FILE = path.join(__dirname, '..', 'src', 'data', 'newsroom.js');
 const CONTENT_FILE = path.join(__dirname, '..', 'src', 'data', 'content.js');
+const CONTACT_FILE = path.join(__dirname, '..', 'src', 'data', 'contact-submissions.json');
 const ADMIN_PASS = 'admin123'; // Simple local-only auth
 
 function readRecipes() {
@@ -226,6 +227,36 @@ const server = http.createServer(async (req, res) => {
       }).on('error', (err) => {
         send(res, 500, { ok: false, error: 'Failed to fetch URL: ' + err.message });
       });
+      return;
+    }
+
+    // ── Contact form submission ──
+    if (pathname === '/api/contact' && req.method === 'POST') {
+      const form = await parseBody(req);
+      form.timestamp = new Date().toISOString();
+      form.ip = req.socket.remoteAddress;
+      let submissions = [];
+      if (fs.existsSync(CONTACT_FILE)) {
+        try { submissions = JSON.parse(fs.readFileSync(CONTACT_FILE, 'utf-8')); } catch {}
+      }
+      submissions.push(form);
+      fs.writeFileSync(CONTACT_FILE, JSON.stringify(submissions, null, 2), 'utf-8');
+      console.log(`📩 Contact form submission from ${form.name} <${form.email}>`);
+      send(res, 200, { ok: true, message: 'Message received! We will get back to you soon.' });
+      return;
+    }
+
+    // ── View contact submissions (admin only) ──
+    if (pathname === '/api/contact-submissions' && req.method === 'GET') {
+      if (!auth || !auth.startsWith('Bearer admin-token-')) {
+        send(res, 401, { ok: false, error: 'Unauthorized' });
+        return;
+      }
+      let submissions = [];
+      if (fs.existsSync(CONTACT_FILE)) {
+        try { submissions = JSON.parse(fs.readFileSync(CONTACT_FILE, 'utf-8')); } catch {}
+      }
+      send(res, 200, { ok: true, submissions });
       return;
     }
 

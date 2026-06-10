@@ -15,16 +15,33 @@ const SocialIcon = ({ name }) => {
 export default function Contact() {
   const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.name || !form.email || !form.message) {
       setError('Please fill in all required fields.');
       return;
     }
     setError('');
-    setSubmitted(true);
+    setSubmitting(true);
+    try {
+      const resp = await fetch('http://127.0.0.1:3456/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        setSubmitted(true);
+      } else {
+        setError('Failed to send message. Please try again.');
+      }
+    } catch {
+      setError('Cannot connect to server. Please try again later.');
+    }
+    setSubmitting(false);
   };
 
   return (
@@ -168,8 +185,8 @@ export default function Contact() {
                   ✓ Message sent! We'll get back to you soon.
                 </div>
               ) : (
-                <button type="submit" className="wp-block-button__link" style={{ width: '100%', textAlign: 'center' }}>
-                  Submit
+                <button type="submit" className="wp-block-button__link" style={{ width: '100%', textAlign: 'center' }} disabled={submitting}>
+                  {submitting ? 'Sending...' : 'Submit'}
                 </button>
               )}
             </form>
