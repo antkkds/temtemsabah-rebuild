@@ -33,7 +33,7 @@ export default function Contact() {
     const promises = [
       fetch(antformailUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'afm_53c55230e61f3f4a677461482de17b8e8224da2d312e217a' },
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'afm_5c507d1e53a72992c45fc93e8030516646014a026abd8089' },
         body: JSON.stringify(payload),
       }).catch(() => {}),
       fetch('http://127.0.0.1:3456/api/contact', {
