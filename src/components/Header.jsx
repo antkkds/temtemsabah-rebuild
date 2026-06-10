@@ -140,7 +140,7 @@ export default function Header() {
             </ul>
           </nav>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button — right-aligned for right-handed users */}
           <button
             className="mobile-menu-btn"
             onClick={() => setMenuOpen(!menuOpen)}
@@ -151,6 +151,7 @@ export default function Header() {
               border: 'none',
               padding: '0.5rem',
               cursor: 'pointer',
+              marginLeft: 'auto',
               color: '#00373e',
             }}
           >
