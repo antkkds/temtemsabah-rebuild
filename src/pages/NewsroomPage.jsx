@@ -53,7 +53,7 @@ function NewsCard({ article }) {
           style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }}
           onMouseOver={e => e.currentTarget.style.transform = 'scale(1.05)'}
           onMouseOut={e => e.currentTarget.style.transform = 'scale(1)'}
-          onError={e => { e.target.style.display = 'none'; }}
+          onError={e => { e.target.src = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="225" viewBox="0 0 400 225"><rect fill="#f5f5f5" width="400" height="225"/><text fill="#ccc" font-family="sans-serif" font-size="14" text-anchor="middle" x="200" y="115">No Image</text></svg>'); }}
         />
         <span style={{
           position: 'absolute', top: 8, left: 8,

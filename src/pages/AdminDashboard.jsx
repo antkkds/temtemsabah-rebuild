@@ -227,7 +227,7 @@ function ArticleList({ articles, search, setSearch, filterType, setFilterType, f
               borderRadius: 6, background: '#1a1f2e', border: '1px solid #2a3040',
             }}>
               <img src={a.featured_image} alt="" style={{ width: 48, height: 48, borderRadius: 4, objectFit: 'cover', background: '#0f1219' }}
-                onError={e => e.target.style.display = 'none'} />
+                onError={e => { e.target.style.background = '#2a3040'; e.target.style.display = 'none'; }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.title}</div>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: 2 }}>
@@ -508,10 +508,29 @@ function ArticleForm({ article, onSave, onCancel }) {
       </div>
 
       {/* Actions */}
-      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-        <button onClick={() => onSave(e)} style={{ padding: '0.5rem 1.5rem', borderRadius: 6, border: 'none', background: '#00373e', color: 'white', cursor: 'pointer' }}>💾 Save</button>
-        <button onClick={() => onSave({ ...e, status: 'draft' })} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #f59e0b', background: 'transparent', color: '#f59e0b', cursor: 'pointer' }}>Save as Draft</button>
-        <button onClick={onCancel} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #2a3040', background: 'transparent', color: '#9ca3af', cursor: 'pointer' }}>Cancel</button>
+      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+        <button onClick={() => {
+          if (!e.title.trim()) { setFormMsg('❌ Title is required'); return; }
+          onSave({ ...e, status: 'published' });
+        }} style={{
+          padding: '0.5rem 1.5rem', borderRadius: 6, border: 'none',
+          background: '#7fd962', color: '#000', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
+        }}>📢 Publish</button>
+        <button onClick={() => {
+          if (!e.title.trim()) { setFormMsg('❌ Title is required'); return; }
+          onSave(e);
+        }} style={{
+          padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #2a3040',
+          background: 'transparent', color: '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
+        }}>💾 Save</button>
+        <button onClick={() => onSave({ ...e, status: 'draft' })} style={{
+          padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #f59e0b',
+          background: 'transparent', color: '#f59e0b', cursor: 'pointer', fontSize: '0.85rem'
+        }}>Save as Draft</button>
+        <button onClick={onCancel} style={{
+          padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #2a3040',
+          background: 'transparent', color: '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
+        }}>Cancel</button>
       </div>
     </div>
   );
@@ -589,9 +608,15 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
         <label style={label}>TikTok Video URL (optional)</label>
         <input value={e.video || ''} onChange={v => update('video', v.target.value)} placeholder="https://www.tiktok.com/..." style={inp} />
       </div>
-      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
-        <button onClick={() => onSave(e)} style={{ padding: '0.5rem 1.5rem', borderRadius: 6, border: 'none', background: '#00373e', color: 'white', cursor: 'pointer' }}>💾 Save Recipe</button>
-        <button onClick={onCancel} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #2a3040', background: 'transparent', color: '#9ca3af', cursor: 'pointer' }}>Cancel</button>
+      <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+        <button onClick={() => onSave(e)} style={{
+          padding: '0.5rem 1.5rem', borderRadius: 6, border: 'none',
+          background: '#00373e', color: 'white', cursor: 'pointer', fontSize: '0.85rem'
+        }}>💾 Save Recipe</button>
+        <button onClick={onCancel} style={{
+          padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #2a3040',
+          background: 'transparent', color: '#9ca3af', cursor: 'pointer'
+        }}>Cancel</button>
       </div>
     </div>
   );
