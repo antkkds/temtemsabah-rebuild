@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Anthony",
+    "email": "antkkds@gmail.com",
+    "message": "Test enquiry from website",
+    "timestamp": "2026-06-10T04:06:26.189Z",
+    "ip": "127.0.0.1"
+  },
+  {
+    "name": "Anthony Test",
+    "email": "antkkds@gmail.com",
+    "message": "✅ Local test — this message was saved to contact-submissions.json",
+    "timestamp": "2026-06-10T07:06:12.533Z",
+    "ip": "127.0.0.1"
+  }
+]

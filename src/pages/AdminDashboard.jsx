@@ -510,14 +510,14 @@ function ArticleForm({ article, onSave, onCancel }) {
       {/* Actions */}
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
         <button onClick={() => {
-          if (!e.title.trim()) { setFormMsg('❌ Title is required'); return; }
+          if (!e.title.trim()) { setFormMsg('⚠️ Title is empty — saving anyway'); }
           onSave({ ...e, status: 'published' });
         }} style={{
           padding: '0.5rem 1.5rem', borderRadius: 6, border: 'none',
           background: '#7fd962', color: '#000', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem'
         }}>📢 Publish</button>
         <button onClick={() => {
-          if (!e.title.trim()) { setFormMsg('❌ Title is required'); return; }
+          if (!e.title.trim()) { setFormMsg('⚠️ Title is empty — saving anyway'); }
           onSave(e);
         }} style={{
           padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #2a3040',
@@ -605,8 +605,19 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
         <input value={e.equipment || ''} onChange={v => update('equipment', v.target.value)} style={inp} />
       </div>
       <div style={{ marginTop: '0.75rem' }}>
-        <label style={label}>TikTok Video URL (optional)</label>
-        <input value={e.video || ''} onChange={v => update('video', v.target.value)} placeholder="https://www.tiktok.com/..." style={inp} />
+        <label style={label}>TikTok Video URL or Embed Code (optional)</label>
+        <input value={e.video || ''} onChange={v => {
+          const raw = v.target.value;
+          // Detect TikTok embed codes and extract URL
+          let url = raw;
+          const blockquoteMatch = raw.match(/cite=["'](https:\/\/[^"']*tiktok\.com[^"']*)["']/i);
+          const iframeMatch = raw.match(/src=["'](https:\/\/[^"']*tiktok\.com[^"']*)["']/i);
+          const anyUrlMatch = raw.match(/(https:\/\/[a-z0-9]+\.tiktok\.com\/[^\s"'<>]+)/i);
+          if (blockquoteMatch) url = blockquoteMatch[1];
+          else if (iframeMatch) url = iframeMatch[1];
+          else if (anyUrlMatch) url = anyUrlMatch[1];
+          update('video', url);
+        }} placeholder="Paste TikTok URL or embed code..." style={inp} />
       </div>
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
         <button onClick={() => onSave(e)} style={{

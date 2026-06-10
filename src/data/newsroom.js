@@ -149,7 +149,7 @@ export const NEWSROOM_DATA = [
     "slug": "facebook-post-tem-tem-sabah",
     "excerpt": "🇲🇾🇰🇷 From Sabah to Seoul! We are proud to share that TemTem is currently showcasing at SEOUL FOOD 2026, one of Asia’s leading international food exhibitions in South Korea. This is a meaningful...",
     "full_content": "",
-    "featured_image": "https://scontent.fbki1-2.fna.fbcdn.net/v/t39.30808-6/718800059_936336839423463_6034497076413136432_n.jpg?stp=dst-jpg_tt6&amp;cstp=mx1254x1254&amp;ctp=s600x600&amp;_nc_cat=104&amp;ccb=1-7&amp;_nc_sid=cae128&amp;_nc_ohc=2lfQzDEz9kwQ7kNvwE2-KIr&amp;_nc_oc=AdpNlXOt-Y_qVToQzTANCjl23q65wTmnj5JPj2pvRaDfEzTYfPSYtKs5qDpVjYgMb6M&amp;_nc_zt=23&amp;_nc_ht=scontent.fbki1-2.fna&amp;_nc_gid=uSR57UBPUVHWjLQ7M4dxmw&amp;_nc_ss=7020f&amp;oh=00_Af8ZADgM1z-URFvpCk1yNRAQ0_C49vTPY2ZuYAgI7_fhoQ&amp;oe=6A2EB7E3",
+    "featured_image": "https://temtemsabah.com/wp-content/uploads/2026/06/seoulfood2006.jpg",
     "category": "Facebook Updates",
     "content_type": "facebook",
     "external_url": "",
@@ -161,7 +161,28 @@ export const NEWSROOM_DATA = [
     "status": "published",
     "featured": true,
     "created_at": "2026-06-10T03:10:53.857Z",
-    "updated_at": "2026-06-10T03:15:02.829Z",
+    "updated_at": "2026-06-10T03:42:52.180Z",
+    "source": "Facebook"
+  },
+  {
+    "id": "n-1781063638089",
+    "title": "",
+    "slug": "tem-tem-sabah",
+    "excerpt": "🌍 TEM TEM Sabah is going to THAIFEX – Anuga Asia 2026! 🇹🇭✨ We’re excited to represent Sabah at one of Asia’s biggest food & beverage exhibitions! 💛 Come discover our plant-based tempeh snacks m...",
+    "full_content": "",
+    "featured_image": "https://temtemsabah.com/wp-content/uploads/2026/06/thaifex2026.jpg",
+    "category": "Facebook Updates",
+    "content_type": "facebook",
+    "external_url": "",
+    "facebook_url": "https://www.facebook.com/TemTemSabahOfficial/posts/pfbid0pX9qQNDGS7szaDd8aiLTZrELYkGXpY75qGjVxtLZjXtFVzrbqZTdfHj1VjSuqEH4l",
+    "publish_date": "June 10, 2026",
+    "author": "Tem Tem Sabah",
+    "seo_title": "",
+    "seo_description": "🌍 TEM TEM Sabah is going to THAIFEX – Anuga Asia 2026! 🇹🇭✨ We’re excited to represent Sabah at one of Asia’s biggest food & beverage exhibitions! 💛 Come discover our plant-based tempeh snacks made...",
+    "status": "published",
+    "featured": true,
+    "created_at": "2026-06-10T03:53:58.089Z",
+    "updated_at": "2026-06-10T03:54:14.227Z",
     "source": "Facebook"
   }
 ];

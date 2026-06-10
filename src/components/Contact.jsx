@@ -190,8 +190,46 @@ export default function Contact() {
                   ✓ Message sent! We'll get back to you soon.
                 </div>
               ) : (
-                <button type="submit" className="wp-block-button__link" style={{ width: '100%', textAlign: 'center' }} disabled={submitting}>
-                  {submitting ? 'Sending...' : 'Submit'}
+                <button type="submit" disabled={submitting} style={{
+                  width: '100%',
+                  padding: '14px 28px',
+                  background: 'linear-gradient(135deg, #00373e 0%, #005a63 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  cursor: submitting ? 'not-allowed' : 'pointer',
+                  opacity: submitting ? 0.7 : 1,
+                  transition: 'all 0.25s ease',
+                  boxShadow: '0 4px 14px rgba(0, 55, 62, 0.3)',
+                  letterSpacing: '0.02em',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                }}
+                  onMouseOver={e => { if (!submitting) { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 20px rgba(0, 55, 62, 0.4)'; }}}
+                  onMouseOut={e => { if (!submitting) { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 14px rgba(0, 55, 62, 0.3)'; }}}
+                  onMouseDown={e => { if (!submitting) { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 2px 8px rgba(0, 55, 62, 0.3)'; }}}
+                >
+                  {submitting ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}>
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" fill="none" opacity="0.3"/>
+                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeLinecap="round"/>
+                      </svg>
+                      Sending...
+                    </span>
+                  ) : (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13"/>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                      </svg>
+                      Send Message
+                    </span>
+                  )}
                 </button>
               )}
             </form>
