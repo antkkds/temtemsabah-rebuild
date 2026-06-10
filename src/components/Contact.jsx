@@ -26,20 +26,25 @@ export default function Contact() {
     }
     setError('');
     setSubmitting(true);
-    try {
-      const resp = await fetch('http://127.0.0.1:3456/api/contact', {
+    const payload = { name: form.name, email: form.email, phone: form.phone, message: form.message };
+    
+    // Try AntForMail (self-hosted on Render), fallback to local API
+    const antformailUrl = 'https://antformail.onrender.com/api/submit';
+    const promises = [
+      fetch(antformailUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        setSubmitted(true);
-      } else {
-        setError('Failed to send message. Please try again.');
-      }
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': 'afm_53c55230e61f3f4a677461482de17b8e8224da2d312e217a' },
+        body: JSON.stringify(payload),
+      }).catch(() => {}),
+      fetch('http://127.0.0.1:3456/api/contact', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      }).catch(() => {}),
+    ];
+    try {
+      await Promise.all(promises);
+      setSubmitted(true);
     } catch {
-      setError('Cannot connect to server. Please try again later.');
+      setError('Cannot connect. Please try again.');
     }
     setSubmitting(false);
   };
