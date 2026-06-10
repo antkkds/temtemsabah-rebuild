@@ -257,6 +257,9 @@ function ArticleList({ articles, search, setSearch, filterType, setFilterType, f
 // ── Article Form ──
 function ArticleForm({ article, onSave, onCancel }) {
   const [e, setE] = useState(article);
+  const [autoLoading, setAutoLoading] = useState(false);
+  const [autoUrl, setAutoUrl] = useState('');
+  const [formMsg, setFormMsg] = useState('');
 
   const update = (field, value) => setE({ ...e, [field]: value });
 
@@ -265,6 +268,42 @@ function ArticleForm({ article, onSave, onCancel }) {
     const slug = val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
     update('title', val);
     update('slug', slug);
+  };
+
+  // Auto Generate from URL
+  const autoGenerate = async () => {
+    if (!autoUrl.trim()) return;
+    setAutoLoading(true);
+    try {
+      const resp = await fetch('http://127.0.0.1:3456/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: autoUrl.trim() }),
+      });
+      const data = await resp.json();
+      if (data.ok && data.meta) {
+        const m = data.meta;
+        // Auto-fill fields
+        if (m.title) handleTitle(m.title);
+        if (m.description) setE(prev => ({ ...prev, excerpt: m.description, seo_description: m.description }));
+        if (m.image) setE(prev => ({ ...prev, featured_image: m.image }));
+        if (m.site_name) setE(prev => ({ ...prev, source: m.site_name }));
+        // Set URL field based on content type
+        const url = autoUrl.trim();
+        if (url.includes('facebook.com') || url.includes('fb.com')) {
+          setE(prev => ({ ...prev, content_type: 'facebook', facebook_url: url, category: 'Facebook Updates' }));
+        } else {
+          setE(prev => ({ ...prev, content_type: 'external', external_url: url, category: 'External News' }));
+        }
+        setFormMsg('✅ Auto-generated!');
+        setTimeout(() => setFormMsg(''), 2000);
+      } else {
+        setFormMsg('❌ Failed to extract');
+      }
+    } catch (err) {
+      setFormMsg('❌ Error: ' + err.message);
+    }
+    setAutoLoading(false);
   };
 
   // Content type labels
@@ -280,6 +319,46 @@ function ArticleForm({ article, onSave, onCancel }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
         <button onClick={onCancel} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '1.2rem' }}>←</button>
         <h2 style={{ fontSize: '1.1rem' }}>{e.id && article.id ? '✏️ Edit Article' : '➕ New Article'}</h2>
+      </div>
+
+      {/* Auto Generate Section */}
+      <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #2a3040', borderRadius: 8, background: '#0f1219' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+          <h3 style={{ fontSize: '0.85rem', color: '#59c2ff', margin: 0 }}>
+            ⚡ Auto Generate from URL
+          </h3>
+          <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Paste any article URL → auto-fills all fields</span>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input
+            value={autoUrl}
+            onChange={e => setAutoUrl(e.target.value)}
+            placeholder="https://www.theborneopost.com/... or https://www.facebook.com/..."
+            style={{ ...inp, flex: 1, fontSize: '0.8rem' }}
+            onKeyDown={e => e.key === 'Enter' && autoGenerate()}
+          />
+          <button
+            onClick={autoGenerate}
+            disabled={autoLoading || !autoUrl.trim()}
+            style={{
+              padding: '0.5rem 1.25rem',
+              borderRadius: 6,
+              border: 'none',
+              background: autoLoading ? '#2a3040' : '#59c2ff',
+              color: autoLoading ? '#6b7280' : '#000',
+              cursor: autoLoading ? 'not-allowed' : 'pointer',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {autoLoading ? '⏳ Loading...' : '🚀 Auto Generate'}
+          </button>
+        </div>
+        {formMsg && <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: formMsg.includes('✅') ? '#7fd962' : '#f26d78' }}>{formMsg}</p>}
+        <p style={{ marginTop: '0.25rem', fontSize: '0.7rem', color: '#6b7280' }}>
+          Supports: External News, Facebook posts, any article URL with OG tags
+        </p>
       </div>
 
       {/* Smart form: Title + Slug always visible */}

@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
@@ -154,6 +155,55 @@ const server = http.createServer(async (req, res) => {
       } else {
         send(res, 404, { ok: false, error: 'No data' });
       }
+      return;
+    }
+
+    // ── Extract metadata from URL (for Auto Generate feature) ──
+    if (pathname === '/api/extract' && req.method === 'POST') {
+      const { url } = await parseBody(req);
+      if (!url) { send(res, 400, { ok: false, error: 'URL required' }); return; }
+
+      const fetcher = url.startsWith('https') ? https : http;
+      fetcher.get(url, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HermesAgent/1.0)' } }, (resp) => {
+        let data = '';
+        resp.on('data', chunk => data += chunk);
+        resp.on('end', () => {
+          const meta = { title: '', description: '', image: '', site_name: '' };
+
+          // Extract OG tags
+          const ogTitle = data.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i);
+          if (ogTitle) meta.title = ogTitle[1];
+
+          const ogDesc = data.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i);
+          if (ogDesc) meta.description = ogDesc[1];
+
+          const ogImage = data.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i);
+          if (ogImage) meta.image = ogImage[1];
+
+          const ogSite = data.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']*)["']/i);
+          if (ogSite) meta.site_name = ogSite[1];
+
+          // Fallback to standard meta
+          if (!meta.title) {
+            const titleTag = data.match(/<title>([^<]*)<\/title>/i);
+            if (titleTag) meta.title = titleTag[1].replace(/\\s*\\|\\s*.*$/, '').trim();
+          }
+          if (!meta.description) {
+            const metaDesc = data.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+            if (metaDesc) meta.description = metaDesc[1];
+          }
+
+          // For Facebook URLs, special handling
+          if (url.includes('facebook.com') || url.includes('fb.com')) {
+            meta.site_name = 'Facebook';
+            if (!meta.title) meta.title = 'Facebook Post';
+          }
+
+          send(res, 200, { ok: true, meta, source_url: url });
+        });
+      }).on('error', (err) => {
+        send(res, 500, { ok: false, error: 'Failed to fetch URL: ' + err.message });
+      });
       return;
     }
 
