@@ -26,6 +26,25 @@ export default function AdminDashboard({ token, onLogout }) {
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
+  // 🪄 Magic Link: auto-fill recipe from URL params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const getParam = (name) => params.get(name) || hashParams.get(name);
+    const title = getParam('title');
+    if (title) {
+      setEditingRecipe({
+        id: '', title, subtitle: getParam('subtitle') || '', image: getParam('image') || '',
+        thumbnail: '', type: getParam('type') || 'snack', cuisine: getParam('cuisine') || '',
+        prep: getParam('prep') || '', cook: getParam('cook') || '',
+        servings: parseInt(getParam('servings')) || 4, cost: '', description: getParam('desc') || '',
+        ingredients: [], instructions: [], equipment: [], tips: '', video: getParam('video') || '',
+        nutrition: { calories: '', protein: '', carbs: '', fat: '' },
+      });
+      setView('recipe-edit');
+    }
+  }, []);
+
   const fetchData = () => {
     Promise.all([
       fetch(API + '/api/newsroom').then(r => r.json()),
@@ -505,23 +524,7 @@ function ArticleForm({ article, onSave, onCancel }) {
           </div>
         </div>
 
-        {/* SEO Section */}
-        <div style={{ border: '1px solid #2a3040', borderRadius: 6, padding: '0.75rem', marginTop: '0.5rem' }}>
-          <h3 style={{ fontSize: '0.85rem', color: '#9ca3af', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>SEO Settings</h3>
-          <div style={{ display: 'grid', gap: '0.5rem' }}>
-            <input value={e.seo_title} onChange={v => update('seo_title', v.target.value)} placeholder="SEO Title (leave empty to use article title)" style={inp} />
-            <textarea value={e.seo_description} onChange={v => update('seo_description', v.target.value)} rows={2} placeholder="SEO Description" style={{ ...inp, resize: 'vertical' }} />
-          </div>
-        </div>
-
-        {/* Featured toggle */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#9ca3af', fontSize: '0.85rem' }}>
-          <input type="checkbox" checked={e.featured} onChange={v => update('featured', v.target.checked)} />
-          Featured article (shows first)
-        </label>
-      </div>
-
-      {/* Actions */}
+        {/* Actions */}
       <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
         <button onClick={() => {
           if (!e.title.trim()) { setFormMsg('⚠️ Title is empty — saving anyway'); }
@@ -547,6 +550,7 @@ function ArticleForm({ article, onSave, onCancel }) {
         }}>Cancel</button>
       </div>
     </div>
+    </div>
   );
 }
 
@@ -563,6 +567,42 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
         <button onClick={onCancel} style={{ background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '1.2rem' }}>←</button>
         <h2 style={{ fontSize: '1.1rem' }}>{e.id ? '✏️ Edit Recipe' : '➕ New Recipe'}</h2>
       </div>
+
+      {/* 🪄 Magic Key: paste image URL -> OCR + Gemini -> autofill */}
+      <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #2a3040', borderRadius: 8, background: '#0a1220' }}>
+        <label style={{ display: 'block', fontSize: '0.8rem', color: '#59c2ff', fontWeight: 600, marginBottom: '0.25rem' }}>🪄 Magic Key</label>
+        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>Paste recipe image URL or take photo → auto-fills fields</p>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input id="magic-url-input" placeholder="https://example.com/recipe-photo.jpg" style={{ ...inp, flex: 1, fontSize: '0.8rem' }} />
+          <button id="magic-btn" onClick={async () => {
+            const url = document.getElementById('magic-url-input').value.trim();
+            if (!url) return;
+            const btn = document.getElementById('magic-btn');
+            btn.disabled = true; btn.textContent = '⏳';
+            document.getElementById('magic-status').textContent = 'Sending to AI...';
+            try {
+              const resp = await fetch('http://127.0.0.1:3456/api/recipe-magic', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageUrl: url }),
+              });
+              const data = await resp.json();
+              if (data.recipe && data.recipe.title) {
+                setE(data.recipe);
+                document.getElementById('magic-status').textContent = '✅ Auto-filled! Review and save.';
+              } else if (data.ocr) {
+                document.getElementById('magic-status').textContent = '⚠️ OCR found text but could not parse.';
+              } else {
+                document.getElementById('magic-status').textContent = '❌ ' + (data.error || 'Failed');
+              }
+            } catch (err) {
+              document.getElementById('magic-status').textContent = '❌ Error: ' + err.message;
+            }
+            btn.disabled = false; btn.textContent = '🪄 Magic';
+          }} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: 'none', background: '#59c2ff', color: '#000', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>🪄 Magic</button>
+        </div>
+        <p id="magic-status" style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.35rem' }}></p>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div><label style={label}>Title</label><input value={e.title} onChange={v => update('title', v.target.value)} style={inp} /></div>
         <div><label style={label}>Subtitle</label><input value={e.subtitle} onChange={v => update('subtitle', v.target.value)} style={inp} /></div>
