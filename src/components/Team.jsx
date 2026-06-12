@@ -140,9 +140,9 @@ export default function Team() {
               textAlign: 'center',
             }}
           >
-            Welcome Message
+            {t(T.welcome_heading)}
           </h3>
-            {WELCOME_STORY.map((para, i) => (
+            {[0, 1, 2].map((i) => (
             <p
               key={i}
               className="has-text-align-center"
@@ -152,10 +152,10 @@ export default function Team() {
                 lineHeight: 1.8,
                 textAlign: 'center',
                 margin: 0,
-                marginBottom: i < WELCOME_STORY.length - 1 ? '2rem' : 0,
+                marginBottom: i < 2 ? '2rem' : 0,
               }}
             >
-              {para}
+              {t(T.welcome[i])}
             </p>
           ))}
         </div>
