@@ -1,6 +1,10 @@
-import { MISSION, PRODUCT_IMAGES } from '../data/content';
+import { PRODUCT_IMAGES } from '../data/content';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 export default function Mission() {
+  const { lang } = useLanguage();
+  const t = (obj) => obj?.[lang] || obj?.en || '';
   return (
     <section
       className="wp-block-group alignfull"
@@ -79,7 +83,7 @@ export default function Mission() {
                 margin: 0,
               }}
             >
-              {MISSION.vision}
+              {t(T.mission.vision)}
             </p>
           </div>
 
@@ -114,7 +118,7 @@ export default function Mission() {
                 margin: 0,
               }}
             >
-              {MISSION.mission}
+              {t(T.mission.mission)}
             </p>
           </div>
         </div>

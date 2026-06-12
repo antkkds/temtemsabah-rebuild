@@ -1,4 +1,6 @@
 import { CONTACT } from '../data/content';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 import { useState } from 'react';
 import { Phone, Mail, MapPin } from 'lucide-react';
 
@@ -13,6 +15,8 @@ const SocialIcon = ({ name }) => {
 };
 
 export default function Contact() {
+  const { lang } = useLanguage();
+  const t = (obj) => obj?.[lang] || obj?.en || '';
   const [form, setForm] = useState({ name: '', phone: '', email: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -117,7 +121,7 @@ export default function Contact() {
               </div>
 
               <div>
-                <div style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.9rem' }}>Connect With Us</div>
+                <div style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '0.9rem' }}>{t(T.contact.connect)}</div>
                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', fontSize: 36 }}>
                   {[
                     { name: 'instagram', href: CONTACT.social.instagram, label: 'Instagram' },
@@ -193,7 +197,7 @@ export default function Contact() {
                 <button type="submit" disabled={submitting} style={{
                   width: '100%',
                   padding: '14px 28px',
-                  background: 'linear-gradient(135deg, #00373e 0%, #005a63 100%)',
+                  background: '#008ba7',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 8,

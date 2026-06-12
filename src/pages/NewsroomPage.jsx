@@ -11,42 +11,102 @@ const CATEGORY_COLORS = {
   'Announcements': '#ffd976',
 };
 
+
+function FbEmbed({ url }) {
+  const [resolvedUrl, setResolvedUrl] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!url) { setLoading(false); setError(true); return; }
+    
+    // Try Facebook's oEmbed API first — supports more URL formats
+    const oembedUrl = `https://www.facebook.com/plugins/post/oembed.json?url=${encodeURIComponent(url)}`;
+    fetch(oembedUrl)
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.html) {
+          // Extract the embed URL from the oEmbed HTML
+          const match = data.html.match(/src=["']([^"']+)["']/);
+          if (match) {
+            setResolvedUrl(match[1]);
+          } else {
+            setResolvedUrl(data.url || url);
+          }
+        } else {
+          setResolvedUrl(url);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        // Fallback: direct embed
+        let cleanUrl = url.replace('//web.facebook.com/', '//www.facebook.com/');
+        // Only strip tracking params, NOT essential params like fbid
+        cleanUrl = cleanUrl.replace(/[?&]ref=[^&]*/g, '').replace(/[?&]rdid=[^&]*/g, '').replace(/[?&]share_url=[^&]*/g, '');
+        if (cleanUrl.includes('/share/')) {
+          setError(true);
+        }
+        setResolvedUrl(cleanUrl);
+        setLoading(false);
+      });
+  }, [url]);
+
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>Loading...</div>;
+  if (error || !resolvedUrl || resolvedUrl.includes('/share/')) return (
+    <div style={{ padding: '2rem', textAlign: 'center' }}>
+      <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📘</div>
+      <p style={{ color: '#333', fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: 600 }}>
+        Facebook Post
+      </p>
+      <p style={{ color: '#999', fontSize: '0.8rem', marginBottom: '1rem' }}>
+        Preview not available for this link type
+      </p>
+      <a href={url} target="_blank" rel="noopener noreferrer" style={{
+        display: 'inline-block', padding: '0.5rem 1.5rem', borderRadius: 999,
+        background: '#1877F2', color: '#fff', fontSize: '0.85rem', fontWeight: 600,
+        textDecoration: 'none',
+      }}>View on Facebook →</a>
+    </div>
+  );
+
+  return (
+    <iframe
+      src={`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(resolvedUrl)}&show_text=true&width=340`}
+      style={{ width: '100%', height: 400, border: 'none', overflow: 'hidden' }}
+      scrolling="no"
+      allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+      title="Facebook Post"
+    />
+  );
+}
+
 function NewsCard({ article, onFbClick }) {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (article.content_type === 'external' && article.external_url) {
-      window.open(article.external_url, '_blank', 'noopener');
-    } else if (article.content_type === 'facebook' && article.facebook_url) {
-      onFbClick(article.facebook_url);
-    } else if (article.content_type === 'internal' && article.slug) {
+    if (article.content_type === 'internal' && article.slug) {
       navigate(`/newsroom/${article.slug}`);
     } else if (article.content_type === 'announcement') {
       navigate(`/newsroom/${article.slug}`);
     }
+    // External news: clicking card does nothing — use the button
+    // Facebook: inline embed
   };
 
   return article.content_type === 'facebook' ? (
-    <div onClick={() => onFbClick(article.facebook_url)} style={{
-      cursor: 'pointer', borderRadius: 0, overflow: 'hidden',
+    <div style={{
+      borderRadius: 0, overflow: 'hidden',
       background: '#fff', border: '1px solid #e5e7eb',
-      padding: '1rem', textAlign: 'center',
+      display: 'flex', flexDirection: 'column',
     }}>
-      <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📘</div>
-      <p style={{ fontSize: '0.85rem', color: '#1877F2', fontWeight: 600, margin: 0 }}>
-        Facebook Update
-      </p>
-      <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.25rem' }}>
-        Click to view post
-      </p>
-      <span style={{
-        display: 'inline-block', marginTop: '0.5rem',
-        padding: '0.3rem 1rem', borderRadius: 999,
-        background: '#1877F2', color: '#fff',
-        fontSize: '0.75rem', fontWeight: 600,
-      }}>
-        View on Facebook
-      </span>
+      <div style={{ padding: '0.5rem 1rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid #f0f0f0' }}>
+        <span style={{ fontSize: '0.7rem', color: '#999', marginLeft: 'auto' }}>
+          {article.publish_date ? new Date(article.publish_date).toLocaleDateString() : ''}
+        </span>
+      </div>
+      <div style={{ flex: 1, minHeight: 280, overflow: 'hidden' }}>
+        <FbEmbed url={article.facebook_url} />
+      </div>
     </div>
   ) : (
     <article
@@ -109,15 +169,35 @@ function NewsCard({ article, onFbClick }) {
         }}>
           {article.title}
         </h3>
-        <p itemProp="description" style={{
-          fontSize: '0.8rem', color: '#555', lineHeight: 1.5, margin: 0,
-          marginBottom: '1rem', flex: 1,
-          display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+        <p style={{
+          fontSize: '0.85rem', color: '#444', lineHeight: 1.7,
+          margin: 0, marginBottom: '1rem', flex: 1,
+          overflow: 'hidden',
         }}>
-          {article.excerpt}
+          {article.full_content || article.excerpt}
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#00373e', fontSize: '0.8rem', fontWeight: 500 }}>
-          Read More {(article.content_type === 'external' || article.content_type === 'facebook') ? <ExternalLink size={12} /> : <ChevronRight size={12} />}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {article.content_type === 'external' && article.external_url ? (
+            <a href={article.external_url} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '0.4rem 1rem', borderRadius: 6,
+                background: '#00373e', color: '#fff',
+                fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none',
+              }}
+            >
+              Read Full Article <ExternalLink size={12} />
+            </a>
+          ) : (
+            <span style={{ color: '#00373e', fontSize: '0.8rem', fontWeight: 500 }}>
+              Read More <ChevronRight size={12} />
+            </span>
+          )}
+          <span style={{ fontSize: '0.7rem', color: '#999', marginLeft: 'auto' }}>
+            <Calendar size={11} style={{ marginRight: 2, verticalAlign: 'middle' }} />
+            {new Date(article.publish_date).toLocaleDateString('en-MY', { year: 'numeric', month: 'short', day: 'numeric' })}
+          </span>
         </div>
         <meta itemProp="author" content={article.author} />
       </div>
@@ -130,6 +210,7 @@ export default function NewsroomPage() {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fbModal, setFbModal] = useState(null);
+  const [sortOrder, setSortOrder] = useState('desc');
 
   useEffect(() => {
     // Try loading from API first, fallback to local data
@@ -150,8 +231,15 @@ export default function NewsroomPage() {
   }, []);
 
   const filtered = activeFilter === 'All'
-    ? articles
-    : articles.filter(a => a.category === activeFilter);
+    ? [...articles]
+    : [...articles].filter(a => a.category === activeFilter);
+
+  // Sort by publish date
+  filtered.sort((a, b) => {
+    const da = new Date(a.publish_date || 0);
+    const db = new Date(b.publish_date || 0);
+    return sortOrder === 'desc' ? db - da : da - db;
+  });
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>Loading...</div>;
 
@@ -194,6 +282,16 @@ export default function NewsroomPage() {
               {cat}
             </button>
           ))}
+          </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 1rem', marginTop: '0.5rem' }}>
+          <button onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')} style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '0.3rem 0.75rem', borderRadius: 6,
+            border: '1px solid #d1d5db', background: '#fff',
+            color: '#555', fontSize: '0.75rem', cursor: 'pointer',
+          }}>
+            {sortOrder === 'desc' ? '↓ Newest First' : '↑ Oldest First'}
+          </button>
         </div>
       </section>
 

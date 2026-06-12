@@ -1,6 +1,10 @@
-import { TEAM, WELCOME_STORY } from '../data/content';
+import { TEAM } from '../data/content';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 export default function Team() {
+  const { lang } = useLanguage();
+  const t = (obj) => obj?.[lang] || obj?.en || '';
   return (
     <section
       className="wp-block-group alignfull"

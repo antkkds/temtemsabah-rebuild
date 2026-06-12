@@ -1,6 +1,11 @@
 import { SITE } from '../data/content';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 export default function Hero() {
+  const { lang } = useLanguage();
+  const t = (obj) => obj?.[lang] || obj?.en || '';
+
   return (
     <section
       className="wp-block-cover alignfull is-light"
@@ -68,7 +73,7 @@ export default function Hero() {
             margin: 0,
           }}
         >
-          {SITE.headline}
+          {t(T.headline)}
         </h1>
 
         <div style={{ height: 30 }} aria-hidden="true" className="wp-block-spacer" />

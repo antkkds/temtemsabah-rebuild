@@ -8,11 +8,14 @@ import MoreRecipes from './pages/MoreRecipes';
 import AdminPage from './pages/AdminPage';
 import InternalArticlePage from './pages/InternalArticlePage';
 import InfoPage from './pages/InfoPage';
+import { LanguageProvider } from './context/LanguageContext';
 
 export default function App() {
   return (
     <HashRouter>
-      <AppContent />
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
     </HashRouter>
   );
 }

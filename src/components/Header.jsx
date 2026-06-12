@@ -1,249 +1,136 @@
-import { Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
-
-const NAV_ITEMS = [
-  { label: 'Home', href: '/' },
-  { label: 'Newsroom', href: '/newsroom' },
-  { label: 'More Recipes', href: '/more-recipes' },
-  { label: 'Contact', href: '/contact' },
-];
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const location = useLocation();
+  const { lang, setLang, languages } = useLanguage();
+  const t = (obj) => obj?.[lang] || obj?.en || '';
+
   const currentPath = location.hash ? location.hash.replace('#', '') : location.pathname;
+  const isActive = (href) => currentPath === href || (href !== '/' && currentPath.startsWith(href));
+
+  const navLinks = [
+    { href: '/', label: T.nav.home },
+    { href: '/newsroom', label: T.nav.newsroom },
+    { href: '/more-recipes', label: T.nav.recipes },
+    { href: '/contact', label: T.nav.contact },
+  ];
 
   return (
-    <header className="wp-block-template-part">
-      <div
-        className="wp-block-group alignfull"
-        style={{
-          padding: 'var(--wp--preset--spacing--30)',
-          background: '#fff',
-        }}
-      >
-        <div
-          className="wp-block-group alignwide"
+    <header style={{
+      position: 'sticky', top: 0, zIndex: 100,
+      background: '#fff', borderBottom: '1px solid #eee',
+      fontFamily: "'Work Sans', sans-serif",
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        maxWidth: 1200, margin: '0 auto', padding: '0 1rem', height: 64,
+      }}>
+        {/* Logo */}
+        <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <img src="https://temtemsabah.com/wp-content/uploads/2024/11/cropped-Logo-Tem-Tem-Sabah-removebg-preview.png"
+            alt={T.site_name.en} style={{ height: 40, width: 'auto' }} />
+          <span style={{ fontFamily: 'Prata, serif', fontSize: '1rem', color: '#00373e', fontWeight: 600 }}>
+            {T.site_name[lang] || T.site_name.en}
+          </span>
+        </Link>
+
+        {/* Desktop Nav */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          {navLinks.map(link => (
+            <Link key={link.href} to={link.href} onClick={() => setMenuOpen(false)} style={{
+              padding: '0.5rem 0.75rem', borderRadius: 6,
+              color: isActive(link.href) ? '#00373e' : '#555',
+              fontWeight: isActive(link.href) ? 600 : 400,
+              fontSize: '0.85rem', textDecoration: 'none',
+              transition: 'all 0.15s',
+            }}>
+              {t(link.label)}
+            </Link>
+          ))}
+
+          {/* Language Switcher */}
+          <div style={{ display: 'flex', gap: 2, marginLeft: 8, borderLeft: '1px solid #eee', paddingLeft: 8 }}>
+            {languages.map(l => (
+              <button key={l.code} onClick={() => setLang(l.code)} style={{
+                padding: '2px 6px', borderRadius: 4, border: 'none',
+                background: lang === l.code ? '#00373e' : 'transparent',
+                color: lang === l.code ? '#fff' : '#999',
+                fontSize: '0.7rem', cursor: 'pointer', fontWeight: lang === l.code ? 600 : 400,
+              }}>
+                {lang === l.code ? l.flag : l.code.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu"
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            maxWidth: 1200,
-            margin: '0 auto',
-            flexWrap: 'wrap',
+            display: 'none', background: 'none', border: 'none',
+            cursor: 'pointer', padding: 8, marginLeft: 'auto',
+            color: '#00373e',
           }}
         >
-          {/* Logo + Site Title */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div className="wp-block-site-logo is-default-size">
-              <Link to="/" className="custom-logo-link" aria-current={currentPath === '/' ? 'page' : undefined}>
-                <img
-                  width="305"
-                  height="305"
-                  src="https://temtemsabah.com/wp-content/uploads/2024/04/Mum-Approved-Snacks-e1712135606895.png"
-                  className="custom-logo"
-                  alt="Tem Tem Sabah"
-                  decoding="async"
-                  style={{
-                    width: 120,
-                    height: 'auto',
-                    display: 'block',
-                  }}
-                />
-              </Link>
-            </div>
-            <h1
-              className="wp-block-site-title"
-              style={{
-                fontFamily: "'Prata', serif",
-                fontSize: 'clamp(31.609px, 1.976rem + ((1vw - 3.2px) * 2.772), 56px)',
-                fontWeight: 400,
-                lineHeight: 1.2,
-                margin: 0,
-              }}
-            >
-              <Link
-                to="/"
-                style={{ color: '#00373e', textDecoration: 'none' }}
-                aria-current={currentPath === '/' ? 'page' : undefined}
-              >
-                Tem Tem Sabah
-              </Link>
-            </h1>
-          </div>
-
-          {/* Desktop Nav */}
-          <nav
-            className="wp-block-navigation"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-            }}
-          >
-            <ul
-              className="wp-block-navigation__container"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                listStyle: 'none',
-                margin: 0,
-                padding: 0,
-              }}
-            >
-              {NAV_ITEMS.map((item) => (
-                <li
-                  key={item.label}
-                  className={`wp-block-navigation-item ${currentPath === item.href ? 'current-menu-item' : ''}`}
-                  style={{ position: 'relative' }}
-                >
-                  {item.href.startsWith('/') ? (
-                    <Link
-                      to={item.href}
-                      className="wp-block-navigation-item__content"
-                      style={{
-                        display: 'block',
-                        padding: '0.5rem 1rem',
-                        fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.227), 16px)',
-                        color: currentPath === item.href ? '#00373e' : '#333',
-                        textDecoration: 'none',
-                        borderRadius: '0.5rem',
-                        transition: 'background 0.15s',
-                      }}
-                      aria-current={currentPath === item.href ? 'page' : undefined}
-                    >
-                      <span className="wp-block-navigation-item__label">{item.label}</span>
-                    </Link>
-                  ) : (
-                    <a
-                      href={item.href}
-                      className="wp-block-navigation-item__content"
-                      style={{
-                        display: 'block',
-                        padding: '0.5rem 1rem',
-                        fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.227), 16px)',
-                        color: '#333',
-                        textDecoration: 'none',
-                        borderRadius: '0.5rem',
-                        transition: 'background 0.15s',
-                      }}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <span className="wp-block-navigation-item__label">{item.label}</span>
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          {/* Mobile Menu Button — right-aligned for right-handed users */}
-          <button
-            className="mobile-menu-btn"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Toggle menu"
-            style={{
-              display: 'none',
-              background: 'none',
-              border: 'none',
-              padding: '0.5rem',
-              cursor: 'pointer',
-              marginLeft: 'auto',
-              color: '#00373e',
-            }}
-          >
-            {menuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
+          {menuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
 
       {/* Mobile Menu */}
       {menuOpen && (
         <>
-          {/* Overlay backdrop */}
-          <div
-            onClick={() => setMenuOpen(false)}
-            style={{
-              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-              background: 'rgba(0,0,0,0.3)', zIndex: 40,
-              animation: 'fadeIn 0.2s ease',
-            }}
-          />
-          {/* Animated dropdown panel */}
-          <div
-            style={{
-              position: 'fixed', top: 0, right: 0, bottom: 0, width: '75%', maxWidth: 320,
-              background: '#fff', zIndex: 50,
-              boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
-              padding: '2rem',
-              animation: 'slideInRight 0.25s ease',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-              <button onClick={() => setMenuOpen(false)} style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem', color: '#333'
+          <div onClick={() => setMenuOpen(false)} style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.3)', zIndex: 98,
+          }} />
+          <div style={{
+            position: 'fixed', top: 0, right: 0, bottom: 0, width: 280,
+            background: '#fff', zIndex: 99, boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+            padding: '1.5rem',
+            animation: 'slideInRight 0.25s ease-out',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <button onClick={() => setMenuOpen(false)} style={{
+              alignSelf: 'flex-end', background: 'none', border: 'none',
+              cursor: 'pointer', padding: 8, color: '#00373e', marginBottom: '1rem',
+            }}>
+              <X size={24} />
+            </button>
+            {navLinks.map(link => (
+              <Link key={link.href} to={link.href} onClick={() => setMenuOpen(false)} style={{
+                padding: '0.75rem 1rem', borderRadius: 8,
+                color: isActive(link.href) ? '#00373e' : '#333',
+                fontWeight: 700, fontSize: '1rem', textDecoration: 'none',
+                background: isActive(link.href) ? '#f0fdf4' : 'transparent',
               }}>
-                <X size={24} />
-              </button>
+                {t(link.label)}
+              </Link>
+            ))}
+            <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid #eee' }}>
+              <p style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.5rem' }}>Language:</p>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                {languages.map(l => (
+                  <button key={l.code} onClick={() => { setLang(l.code); setMenuOpen(false); }} style={{
+                    padding: '6px 12px', borderRadius: 6, border: 'none',
+                    background: lang === l.code ? '#00373e' : '#f5f5f5',
+                    color: lang === l.code ? '#fff' : '#555',
+                    fontSize: '0.8rem', cursor: 'pointer', fontWeight: 600,
+                  }}>
+                    {l.flag} {l.label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              {NAV_ITEMS.map((item) => (
-                <li key={item.label}>
-                  {item.href.startsWith('/') ? (
-                    <Link
-                      to={item.href}
-                      onClick={() => setMenuOpen(false)}
-                      style={{
-                        display: 'block',
-                        padding: '0.75rem 1rem',
-                        fontSize: '1rem',
-                        fontWeight: 700,
-                        color: currentPath === item.href ? '#00373e' : '#1a1a2e',
-                        textDecoration: 'none',
-                        borderRadius: '0.5rem',
-                        background: currentPath === item.href ? '#e8f4f5' : 'transparent',
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseOver={e => e.currentTarget.style.background = '#f5f5f5'}
-                      onMouseOut={e => e.currentTarget.style.background = currentPath === item.href ? '#e8f4f5' : 'transparent'}
-                    >
-                      {item.label}
-                    </Link>
-                  ) : (
-                    <a
-                      href={item.href}
-                      onClick={() => setMenuOpen(false)}
-                      style={{
-                        display: 'block',
-                        padding: '0.75rem 1rem',
-                        fontSize: '1rem',
-                        fontWeight: 700,
-                        color: '#1a1a2e',
-                        textDecoration: 'none',
-                        borderRadius: '0.5rem',
-                      }}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {item.label}
-                    </a>
-                  )}
-                </li>
-              ))}
-            </ul>
           </div>
         </>
       )}
-
-      <style>{`
-        @media (max-width: 767.5px) {
-          .wp-block-navigation { display: none !important; }
-          .mobile-menu-btn { display: block !important; }
-        }
-      `}</style>
     </header>
   );
 }

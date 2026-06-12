@@ -1,6 +1,9 @@
-import { FEATURES } from '../data/content';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 export default function Features() {
+  const { lang } = useLanguage();
+  const t = (obj) => obj?.[lang] || obj?.en || '';
   return (
     <section
       className="wp-block-cover alignfull"
@@ -37,7 +40,7 @@ export default function Features() {
             gap: '1rem',
           }}
         >
-          {FEATURES.map((f, idx) => (
+          {T.features.map((f, idx) => (
             <div
               key={idx}
               className="wp-block-column"
@@ -57,7 +60,7 @@ export default function Features() {
                   lineHeight: 1.2,
                 }}
               >
-                {f.strong ? <strong>{f.title}</strong> : f.title}
+                {f.strong ? <strong>{t(f.title)}</strong> : t(f.title)}
               </h3>
               <p
                 className="has-text-align-center"
@@ -71,7 +74,7 @@ export default function Features() {
                   lineHeight: 1.5,
                 }}
               >
-                {f.subtitle}
+                {t(f.subtitle)}
               </p>
             </div>
           ))}
