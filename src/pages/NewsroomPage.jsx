@@ -11,14 +11,14 @@ const CATEGORY_COLORS = {
   'Announcements': '#ffd976',
 };
 
-function NewsCard({ article }) {
+function NewsCard({ article, onFbClick }) {
   const navigate = useNavigate();
 
   const handleClick = () => {
     if (article.content_type === 'external' && article.external_url) {
       window.open(article.external_url, '_blank', 'noopener');
     } else if (article.content_type === 'facebook' && article.facebook_url) {
-      window.open(article.facebook_url, '_blank', 'noopener');
+      onFbClick(article.facebook_url);
     } else if (article.content_type === 'internal' && article.slug) {
       navigate(`/newsroom/${article.slug}`);
     } else if (article.content_type === 'announcement') {
@@ -26,7 +26,29 @@ function NewsCard({ article }) {
     }
   };
 
-  return (
+  return article.content_type === 'facebook' ? (
+    <div onClick={() => onFbClick(article.facebook_url)} style={{
+      cursor: 'pointer', borderRadius: 0, overflow: 'hidden',
+      background: '#fff', border: '1px solid #e5e7eb',
+      padding: '1rem', textAlign: 'center',
+    }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📘</div>
+      <p style={{ fontSize: '0.85rem', color: '#1877F2', fontWeight: 600, margin: 0 }}>
+        Facebook Update
+      </p>
+      <p style={{ fontSize: '0.75rem', color: '#999', marginTop: '0.25rem' }}>
+        Click to view post
+      </p>
+      <span style={{
+        display: 'inline-block', marginTop: '0.5rem',
+        padding: '0.3rem 1rem', borderRadius: 999,
+        background: '#1877F2', color: '#fff',
+        fontSize: '0.75rem', fontWeight: 600,
+      }}>
+        View on Facebook
+      </span>
+    </div>
+  ) : (
     <article
       onClick={handleClick}
       itemScope
@@ -107,6 +129,7 @@ export default function NewsroomPage() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fbModal, setFbModal] = useState(null);
 
   useEffect(() => {
     // Try loading from API first, fallback to local data
@@ -182,12 +205,43 @@ export default function NewsroomPage() {
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
               {filtered.map(article => (
-                <NewsCard key={article.id} article={article} />
+                <NewsCard key={article.id} article={article} onFbClick={setFbModal} />
               ))}
             </div>
           )}
         </div>
       </section>
+          {/* Facebook Embed Modal */}
+      {fbModal && (
+        <div onClick={() => setFbModal(null)} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', zIndex: 9999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem',
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#fff', borderRadius: 12, maxWidth: 550, width: '100%',
+            maxHeight: '90vh', overflow: 'auto', padding: '1rem',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+              <button onClick={() => setFbModal(null)} style={{
+                background: 'none', border: 'none', fontSize: '1.25rem', cursor: 'pointer', color: '#666'
+              }}>✕</button>
+            </div>
+            <iframe
+              src={`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(fbModal)}&show_text=true&width=500`}
+              style={{ width: '100%', border: 'none', minHeight: 500 }}
+              scrolling="yes"
+              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+            />
+            <p style={{ textAlign: 'center', marginTop: '0.75rem', fontSize: '0.8rem' }}>
+              <a href={fbModal} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>
+                Open on Facebook →
+              </a>
+            </p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

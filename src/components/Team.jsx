@@ -48,8 +48,6 @@ export default function Team() {
           className="team-grid"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '1.5rem',
           }}
         >
           {TEAM.map((member) => (

@@ -431,7 +431,21 @@ function ArticleForm({ article, onSave, onCancel }) {
         {e.content_type === 'facebook' && (
           <div>
             <label style={label}>Facebook URL *</label>
-            <input value={e.facebook_url} onChange={v => update('facebook_url', v.target.value)} placeholder="https://www.facebook.com/..." style={inp} />
+            <input value={e.facebook_url} onChange={v => {
+              const url = v.target.value;
+              update('facebook_url', url);
+              // Auto-fill title and category when URL is pasted
+              if (url.includes('facebook.com/') && !e.title) {
+                const pageMatch = url.match(/facebook\.com\/([^\/\?]+)/);
+                const name = pageMatch ? pageMatch[1] : 'Facebook';
+                update('title', 'Facebook Post — ' + decodeURIComponent(name));
+                update('slug', 'facebook-' + Date.now());
+                update('category', 'Facebook Updates');
+              }
+            }} placeholder="https://www.facebook.com/..." style={inp} />
+            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 4 }}>
+              Paste any Facebook post URL. Title will auto-fill.
+            </p>
           </div>
         )}
 

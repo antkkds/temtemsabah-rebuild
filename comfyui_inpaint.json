@@ -1,0 +1,95 @@
+{
+  "_comment": "SD 1.5 Inpainting Workflow for ComfyUI",
+  "1": {
+    "inputs": {
+      "image": "input.png",
+      "upload": "image"
+    },
+    "class_type": "LoadImage"
+  },
+  "2": {
+    "inputs": {
+      "image": "mask.png",
+      "upload": "image"
+    },
+    "class_type": "LoadImage"
+  },
+  "3": {
+    "inputs": {
+      "pixels": ["1", 0],
+      "mask": ["2", 0]
+    },
+    "class_type": "ImagePadForOutpaint",
+    "_inputs": {
+      "left": 0,
+      "top": 0,
+      "right": 0,
+      "bottom": 0,
+      "feathering": 0
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "sd-v1-5-inpainting.ckpt"
+    },
+    "class_type": "CheckpointLoaderSimple"
+  },
+  "5": {
+    "inputs": {
+      "vae": ["4", 2]
+    },
+    "class_type": "VAELoader"
+  },
+  "6": {
+    "inputs": {
+      "samples": ["3", 0],
+      "vae": ["5", 0]
+    },
+    "class_type": "VAEEncodeForInpaint",
+    "_inputs": {
+      "grow_mask_by": 6
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "food product, snack packaging, tempeh, no people, clean background, product photography",
+      "clip": ["4", 1]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "8": {
+    "inputs": {
+      "text": "person, human, text, logo, watermark, label, brand name",
+      "clip": ["4", 1]
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "9": {
+    "inputs": {
+      "seed": 42,
+      "steps": 25,
+      "cfg": 7,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 0.85,
+      "model": ["4", 0],
+      "positive": ["7", 0],
+      "negative": ["8", 0],
+      "latent_image": ["6", 0]
+    },
+    "class_type": "KSampler"
+  },
+  "10": {
+    "inputs": {
+      "samples": ["9", 0],
+      "vae": ["5", 0]
+    },
+    "class_type": "VAEDecode"
+  },
+  "11": {
+    "inputs": {
+      "images": ["10", 0]
+    },
+    "class_type": "SaveImage"
+  }
+}

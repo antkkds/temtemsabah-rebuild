@@ -120,6 +120,6 @@ export const PRODUCT_IMAGES = [
   'https://i2.wp.com/temtemsabah.com/wp-content/uploads/2024/04/6-1-edited-1024x1024.png?ssl=1&resize=1080%2C1080',
   'https://i0.wp.com/temtemsabah.com/wp-content/uploads/2024/05/1715692743195-576x1024.jpg?ssl=1&resize=1440%2C1440',
   'https://i0.wp.com/temtemsabah.com/wp-content/uploads/2024/04/7-edited-1024x1024.png?ssl=1&resize=1080%2C1080',
-  'https://temtemsabah.com/wp-content/uploads/2026/06/Steam-Tempeh.jpeg',
   'https://temtemsabah.com/wp-content/uploads/2026/06/Healthy-Steam-Tempeh.jpeg',
+  'https://temtemsabah.com/wp-content/uploads/2026/06/Steam-Tempeh.jpeg',
 ];

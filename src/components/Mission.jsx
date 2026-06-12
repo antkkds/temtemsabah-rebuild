@@ -174,64 +174,41 @@ export default function Mission() {
       >
         <div className="tiled-gallery__gallery">
           {/* Row 1: 2 images */}
-          <div className="tiled-gallery__row" style={{ display: 'flex', margin: 0, padding: 0, lineHeight: 0 }}>
+          <div className="tiled-gallery__row" style={{ display: 'flex', gap: 8, marginBottom: 8, padding: 0, lineHeight: 0 }}>
             {PRODUCT_IMAGES.slice(0, 2).map((src, i) => (
               <div key={i} className="tiled-gallery__col" style={{ flex: '0 0 50%', maxWidth: '50%', lineHeight: 0 }}>
                 <figure className="tiled-gallery__item" style={{ margin: 0, padding: 0 }}>
-                  <img
-                    src={src}
-                    alt=""
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      display: 'block',
-                      aspectRatio: 1,
-                      objectFit: 'cover',
-                    }}
-                    loading="lazy"
-                  />
+                  <img src={src} alt="" style={{ width: '100%', height: 'auto', display: 'block', aspectRatio: 1, objectFit: 'cover', borderRadius: 12 }} loading="lazy" />
                 </figure>
               </div>
             ))}
           </div>
           {/* Row 2: 2 images */}
-          <div className="tiled-gallery__row" style={{ display: 'flex', margin: 0, padding: 0, lineHeight: 0 }}>
+          <div className="tiled-gallery__row" style={{ display: 'flex', gap: 8, marginBottom: 8, padding: 0, lineHeight: 0 }}>
             {PRODUCT_IMAGES.slice(2, 4).map((src, i) => (
               <div key={i} className="tiled-gallery__col" style={{ flex: '0 0 50%', maxWidth: '50%', lineHeight: 0 }}>
                 <figure className="tiled-gallery__item" style={{ margin: 0, padding: 0 }}>
-                  <img
-                    src={src}
-                    alt=""
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      display: 'block',
-                      aspectRatio: 1,
-                      objectFit: 'cover',
-                    }}
-                    loading="lazy"
-                  />
+                  <img src={src} alt="" style={{ width: '100%', height: 'auto', display: 'block', aspectRatio: 1, objectFit: 'cover', borderRadius: 12 }} loading="lazy" />
                 </figure>
               </div>
             ))}
           </div>
           {/* Row 3: 2 images */}
-          <div className="tiled-gallery__row" style={{ display: 'flex', margin: 0, padding: 0, lineHeight: 0 }}>
+          <div className="tiled-gallery__row" style={{ display: 'flex', gap: 8, marginBottom: 8, padding: 0, lineHeight: 0 }}>
             {PRODUCT_IMAGES.slice(4, 6).map((src, i) => (
               <div key={i} className="tiled-gallery__col" style={{ flex: '0 0 50%', maxWidth: '50%', lineHeight: 0 }}>
                 <figure className="tiled-gallery__item" style={{ margin: 0, padding: 0 }}>
-                  <img
-                    src={src}
-                    alt=""
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      display: 'block',
-                      aspectRatio: 1,
-                      objectFit: 'cover',
-                    }}
-                    loading="lazy"
-                  />
+                  <img src={src} alt="" style={{ width: '100%', height: 'auto', display: 'block', aspectRatio: 1, objectFit: 'cover', borderRadius: 12 }} loading="lazy" />
+                </figure>
+              </div>
+            ))}
+          </div>
+          {/* Row 4: 2 new images */}
+          <div className="tiled-gallery__row" style={{ display: 'flex', gap: 8, marginBottom: 0, padding: 0, lineHeight: 0 }}>
+            {PRODUCT_IMAGES.slice(6, 8).map((src, i) => (
+              <div key={i} className="tiled-gallery__col" style={{ flex: '0 0 50%', maxWidth: '50%', lineHeight: 0 }}>
+                <figure className="tiled-gallery__item" style={{ margin: 0, padding: 0 }}>
+                  <img src={src} alt="" style={{ width: '100%', height: 'auto', display: 'block', aspectRatio: 1, objectFit: 'cover', borderRadius: 12 }} loading="lazy" />
                 </figure>
               </div>
             ))}

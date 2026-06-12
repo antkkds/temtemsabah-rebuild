@@ -125,8 +125,8 @@ a {
   /* Mission: stack vertically */
   .mission-grid { grid-template-columns: 1fr !important; }
   
-  /* Team: 2 columns on tablet, 1 on mobile */
-  .team-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  /* Team: 2 columns on tablet */
+  /* (removed — team defaults to desktop 4 cols, mobile handles 1 col) */
   
   /* Contact: stack vertically */
   .contact-grid { grid-template-columns: 1fr !important; }
@@ -135,9 +135,16 @@ a {
   .section-mobile-padding { padding-top: 60px !important; padding-bottom: 60px !important; }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .team-grid { grid-template-columns: 1fr !important; }
-  .team-photo { width: 150px !important; }
+  .team-photo { width: 360px !important; }
+}
+
+/* Desktop team grid */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
 }
 
 .mobile-menu-overlay {
