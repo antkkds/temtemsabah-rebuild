@@ -149,6 +149,12 @@ const server = http.createServer(async (req, res) => {
   try {
     // ══════════════ API ROUTES ══════════════
 
+    // ── Health check ──
+    if (pathname === '/api/health') {
+      send(res, 200, { ok: true, service: 'TemTemSabah Admin', version: '1.0.0' });
+      return;
+    }
+
     // ── Login ──
     if (pathname === '/api/login' && req.method === 'POST') {
       const { password } = await parseBody(req);
