@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TemTemSabah — Visual Editor</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0f1219; color: #e0e6ed; overflow: hidden; }
+
+/* Layout */
+.editor-layout { display: flex; height: 100vh; }
+.left-panel { width: 50%; display: flex; flex-direction: column; }
+.right-panel { width: 50%; overflow-y: auto; background: #1a1f2e; border-left: 2px solid #2a3040; }
+
+/* Preview area — full height, no toolbar blocking */
+.preview-area { 
+  flex: 1; 
+  overflow: auto !important; 
+  display: flex; 
+  align-items: flex-start !important; 
+  justify-content: flex-start !important; 
+  padding: 0 !important; 
+  background: #0a0e14;
+}
+
+/* Toolbar */
+.toolbar {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem; background: #1a1f2e; border-bottom: 1px solid #2a3040;
+  flex-wrap: wrap;
+}
+.toolbar .label { font-size: 0.7rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+.viewport-btn {
+  padding: 0.3rem 0.75rem; border-radius: 4px; border: 1px solid #2a3040;
+  background: transparent; color: #9ca3af; cursor: pointer; font-size: 0.75rem;
+}
+.viewport-btn.active { background: #00373e; color: white; border-color: #00373e; }
+
+/* Preview area scroll fix — show from top */
+.preview-area { 
+  flex: 1; 
+  overflow: auto !important; 
+  display: flex; 
+  align-items: flex-start !important; 
+  justify-content: flex-start !important; 
+  padding: 0 !important; 
+}
+.device-frame { 
+  background: #000; 
+  border-radius: 0; 
+  overflow: hidden; 
+  box-shadow: none; 
+  transition: all 0.3s; 
+  position: relative; 
+  flex-shrink: 0;
+}
+.device-frame iframe { 
+  border: none; 
+  display: block; 
+  background: white; 
+  width: 100%; 
+}
+.device-frame.desktop { width: 100%; }
+.device-frame.desktop iframe { height: 4000px; }
+.device-frame.tablet { width: 768px; }
+.device-frame.tablet iframe { height: 4000px; }
+.device-frame.mobile { width: 375px; }
+.device-frame.mobile iframe { height: 4000px; }
+
+/* Control panel */
+.control-panel { padding: 1rem; }
+.section-group {
+  margin-bottom: 1rem; border: 1px solid #2a3040; border-radius: 8px;
+  overflow: hidden;
+}
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.6rem 1rem; background: #0f1219; cursor: pointer;
+  border-bottom: 1px solid #2a3040;
+}
+.section-header:hover { background: #1a1f2e; }
+.section-header .name { font-size: 0.8rem; font-weight: 600; }
+.section-header .section-toggle {
+  font-size: 0.65rem; padding: 0.2rem 0.5rem; border-radius: 3px;
+  border: 1px solid #2a3040; background: transparent; color: #9ca3af; cursor: pointer;
+}
+.section-header .section-toggle.active { background: #00373e; color: white; border-color: #00373e; }
+.section-body { padding: 0.75rem 1rem; display: none; }
+.section-body.open { display: block; }
+
+.control-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
+.control-row label { font-size: 0.75rem; color: #9ca3af; min-width: 70px; }
+.control-row input[type="range"] { flex: 1; accent-color: #00373e; }
+.control-row input[type="color"] { width: 32px; height: 32px; border: 1px solid #2a3040; border-radius: 4px; cursor: pointer; background: none; padding: 0; }
+.control-row input[type="number"] { width: 60px; padding: 0.3rem; border-radius: 4px; border: 1px solid #2a3040; background: #0f1219; color: #e0e6ed; font-size: 0.75rem; }
+.control-row select { flex: 1; padding: 0.3rem; border-radius: 4px; border: 1px solid #2a3040; background: #0f1219; color: #e0e6ed; font-size: 0.75rem; }
+.control-row .value { font-size: 0.7rem; color: #6b7280; min-width: 30px; text-align: right; }
+
+.btn-action {
+  padding: 0.4rem 0.75rem; border-radius: 4px; border: none;
+  background: #00373e; color: white; cursor: pointer; font-size: 0.75rem;
+  margin-right: 0.25rem;
+}
+.btn-action:hover { background: #004a52; }
+.btn-danger { background: #5c1a1a; }
+.btn-danger:hover { background: #7a2323; }
+.btn-outline { background: transparent; border: 1px solid #2a3040; color: #9ca3af; }
+.btn-outline:hover { background: #2a3040; }
+
+/* Section highlight injected into iframe */
+.hl-section { outline: 2px dashed #39bae6 !important; outline-offset: 2px !important; position: relative !important; }
+.hl-section::before {
+  content: attr(data-section-name);
+  position: absolute; top: 0; left: 0;
+  background: #39bae6; color: #000;
+  font-size: 10px; padding: 2px 6px;
+  z-index: 9999;
+  font-family: monospace;
+}
+</style>
+</head>
+<body>
+<div class="editor-layout">
+  <!-- Left: Preview -->
+  <div class="left-panel">
+    <div class="preview-area">
+      <div class="device-frame desktop" id="deviceFrame">
+        <iframe src="http://localhost:5174/" id="previewFrame"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Controls -->
+  <div class="right-panel">
+    <div class="control-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem;">
+        <h2 style="font-size:1rem;">🎨 Visual Editor</h2>
+        <div style="display:flex;gap:0.25rem;flex-wrap:wrap;">
+          <button class="viewport-btn active" onclick="setViewport('desktop')">🖥</button>
+          <button class="viewport-btn" onclick="setViewport('tablet')">📱</button>
+          <button class="viewport-btn" onclick="setViewport('mobile')">📱</button>
+          <button class="btn-action" onclick="toggleSectionLines()">🔲</button>
+          <button class="btn-action btn-danger" onclick="resetAll()">↺</button>
+        </div>
+      </div>
+
+      <!-- Section: Hero -->
+      <div class="section-group">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="name">🏠 Hero</span>
+          <button class="section-toggle" data-section="hero" onclick="event.stopPropagation();toggleHighlight(this)">👁 Show</button>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label>Text Color</label>
+            <input type="color" value="#000000" onchange="injectCSS('.hero-text { color: '+this.value+' !important; }')">
+          </div>
+          <div class="control-row">
+            <label>Title Size</label>
+            <input type="range" min="30" max="120" value="92" oninput="injectCSS('.hero-title { font-size: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">92px</span>
+          </div>
+          <div class="control-row">
+            <label>Title Weight</label>
+            <select onchange="injectCSS('.hero-title { font-weight: '+this.value+' !important; }')">
+              <option value="300">Light</option>
+              <option value="400">Regular</option>
+              <option value="600" selected>Semibold</option>
+              <option value="700">Bold</option>
+              <option value="900">Black</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <label>Overlay Opacity</label>
+            <input type="range" min="0" max="100" value="40" oninput="injectCSS('.hero-overlay { opacity: '+(this.value/100)+' !important; }');this.nextElementSibling.textContent=this.value+'%'">
+            <span class="value">40%</span>
+          </div>
+          <div class="control-row">
+            <label>Min Height</label>
+            <input type="range" min="400" max="1200" value="880" step="10" oninput="injectCSS('.hero-cover { min-height: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">880px</span>
+          </div>
+          <div class="control-row">
+            <label>Bg Color</label>
+            <input type="color" value="#ffffff" onchange="injectCSS('.hero-cover { background: '+this.value+' !important; }')">
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Yellow Features -->
+      <div class="section-group">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="name">💛 Features (Yellow)</span>
+          <button class="section-toggle" data-section="features" onclick="event.stopPropagation();toggleHighlight(this)">👁 Show</button>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label>Background</label>
+            <input type="color" value="#ffd976" onchange="injectCSS('.features-bg { background: '+this.value+' !important; }')">
+          </div>
+          <div class="control-row">
+            <label>Value Size</label>
+            <input type="range" min="20" max="100" value="70" oninput="injectCSS('.features-value { font-size: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">70px</span>
+          </div>
+          <div class="control-row">
+            <label>Label Size</label>
+            <input type="range" min="12" max="60" value="32" oninput="injectCSS('.features-label { font-size: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">32px</span>
+          </div>
+          <div class="control-row">
+            <label>Min Height</label>
+            <input type="range" min="200" max="600" value="352" step="10" oninput="injectCSS('.features-section { min-height: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">352px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Mission -->
+      <div class="section-group">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="name">🎯 Mission & Values</span>
+          <button class="section-toggle" data-section="mission" onclick="event.stopPropagation();toggleHighlight(this)">👁 Show</button>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label>Bg Color</label>
+            <input type="color" value="#ffffff" onchange="injectCSS('.mission-bg { background: '+this.value+' !important; }')">
+          </div>
+          <div class="control-row">
+            <label>Padding Top</label>
+            <input type="range" min="40" max="200" value="120" step="5" oninput="injectCSS('.mission-section { padding-top: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">120px</span>
+          </div>
+          <div class="control-row">
+            <label>Padding Bottom</label>
+            <input type="range" min="40" max="200" value="120" step="5" oninput="injectCSS('.mission-section { padding-bottom: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">120px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Team -->
+      <div class="section-group">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="name">👥 Team</span>
+          <button class="section-toggle" data-section="team" onclick="event.stopPropagation();toggleHighlight(this)">👁 Show</button>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label>Photo Border radius</label>
+            <input type="range" min="0" max="200" value="999" oninput="injectCSS('.team-photo { border-radius: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">999px</span>
+          </div>
+          <div class="control-row">
+            <label>Photo Width</label>
+            <input type="range" min="100" max="400" value="200" step="10" oninput="injectCSS('.team-photo { width: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">200px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Welcome Message -->
+      <div class="section-group">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="name">💬 Welcome Message</span>
+          <button class="section-toggle" data-section="welcome" onclick="event.stopPropagation();toggleHighlight(this)">👁 Show</button>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label>Bg Color</label>
+            <input type="color" value="#eaeae3" onchange="injectCSS('.welcome-bg { background: '+this.value+' !important; }')">
+          </div>
+          <div class="control-row">
+            <label>Text Color</label>
+            <input type="color" value="#000000" onchange="injectCSS('.welcome-text { color: '+this.value+' !important; }')">
+          </div>
+          <div class="control-row">
+            <label>Text Size</label>
+            <input type="range" min="12" max="36" value="20" oninput="injectCSS('.welcome-text { font-size: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">20px</span>
+          </div>
+          <div class="control-row">
+            <label>Line Height</label>
+            <input type="range" min="1" max="3" step="0.1" value="1.8" oninput="injectCSS('.welcome-text { line-height: '+this.value+' !important; }');this.nextElementSibling.textContent=this.value">
+            <span class="value">1.8</span>
+          </div>
+          <div class="control-row">
+            <label>Max Width</label>
+            <input type="range" min="400" max="900" value="650" step="10" oninput="injectCSS('.welcome-container { max-width: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">650px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Contact -->
+      <div class="section-group">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="name">📞 Contact</span>
+          <button class="section-toggle" data-section="contact" onclick="event.stopPropagation();toggleHighlight(this)">👁 Show</button>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label>Padding</label>
+            <input type="range" min="40" max="200" value="120" step="5" oninput="injectCSS('.contact-section { padding-top: '+this.value+'px !important; padding-bottom: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">120px</span>
+          </div>
+          <div class="control-row">
+            <label>Logo Size</label>
+            <input type="range" min="40" max="400" value="240" step="10" oninput="injectCSS('.contact-logo { width: '+this.value+'px !important; height: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">240px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section: Footer -->
+      <div class="section-group">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="name">📄 Footer</span>
+          <button class="section-toggle" data-section="footer" onclick="event.stopPropagation();toggleHighlight(this)">👁 Show</button>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label>Bg Color</label>
+            <input type="color" value="#03081e" onchange="injectCSS('.footer-bg { background: '+this.value+' !important; }')">
+          </div>
+          <div class="control-row">
+            <label>Text Color</label>
+            <input type="color" value="#9ca3af" onchange="injectCSS('.footer-text { color: '+this.value+' !important; }')">
+          </div>
+        </div>
+      </div>
+
+      <!-- Global Controls -->
+      <div class="section-group">
+        <div class="section-header" onclick="toggleSection(this)">
+          <span class="name">🌐 Global Styles</span>
+          <button class="btn-outline" style="font-size:0.65rem;padding:0.2rem 0.5rem;" onclick="event.stopPropagation();">Apply</button>
+        </div>
+        <div class="section-body">
+          <div class="control-row">
+            <label>Body Font</label>
+            <select onchange="injectCSS('body { font-family: '+this.value+' !important; }')">
+              <option value="'Work Sans', sans-serif">Work Sans</option>
+              <option value="'Prata', serif">Prata</option>
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'IBM Plex Sans', sans-serif">IBM Plex Sans</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="Arial, sans-serif">Arial</option>
+            </select>
+          </div>
+          <div class="control-row">
+            <label>Body Size</label>
+            <input type="range" min="12" max="24" value="16" oninput="injectCSS('body { font-size: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">16px</span>
+          </div>
+          <div class="control-row">
+            <label>Content Width</label>
+            <input type="range" min="600" max="1400" value="1200" step="10" oninput="injectCSS('.container-wide { max-width: '+this.value+'px !important; }');this.nextElementSibling.textContent=this.value+'px'">
+            <span class="value">1200px</span>
+          </div>
+          <div class="control-row">
+            <label>Custom CSS</label>
+            <textarea id="customCSS" rows="4" style="flex:1;padding:0.4rem;border-radius:4px;border:1px solid #2a3040;background:#0f1219;color:#e0e6ed;font-size:0.75rem;font-family:monospace;" placeholder=".class { property: value; }"></textarea>
+          </div>
+          <button class="btn-action" onclick="applyCustomCSS()">Apply Custom CSS</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let sectionLinesOn = false;
+let styleTag = null;
+
+function getIframeDoc() {
+  const iframe = document.getElementById('previewFrame');
+  try {
+    return iframe.contentDocument || iframe.contentWindow.document;
+  } catch(e) {
+    return null;
+  }
+}
+
+function injectCSS(css) {
+  const doc = getIframeDoc();
+  if (!doc) return;
+  if (!styleTag) {
+    styleTag = doc.createElement('style');
+    styleTag.id = 'editor-styles';
+    doc.head.appendChild(styleTag);
+  }
+  // Remove previous declaration for same property via class
+  // Add new rule
+  styleTag.textContent += '\n' + css;
+}
+
+function setViewport(name) {
+  const frame = document.getElementById('deviceFrame');
+  document.querySelectorAll('.viewport-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[onclick*="${name}"]`).classList.add('active');
+  frame.className = 'device-frame ' + name;
+}
+
+function toggleSection(header) {
+  header.nextElementSibling.classList.toggle('open');
+}
+
+function toggleHighlight(btn) {
+  const section = btn.dataset.section;
+  btn.classList.toggle('active');
+  btn.textContent = btn.classList.contains('active') ? '👁 Hide' : '👁 Show';
+  
+  // Inject highlight CSS into iframe
+  const isActive = btn.classList.contains('active');
+  injectCSS('.' + section + '-highlight { outline: ' + (isActive ? '2px dashed #39bae6 !important' : 'none') + '; outline-offset: ' + (isActive ? '2px' : '0') + ' !important; }');
+}
+
+function toggleSectionLines() {
+  sectionLinesOn = !sectionLinesOn;
+  const sections = [
+    '.hero-cover', '.features-section', '.mission-section', 
+    '.team-section', '.welcome-bg', '.contact-section', '.footer-bg'
+  ];
+  const style = sections.map(s => s + ' { outline: ' + (sectionLinesOn ? '2px dashed #39bae6' : 'none') + ' !important; outline-offset: 2px !important; }').join('\n');
+  // Clear previous section lines
+  const doc = getIframeDoc();
+  if (!doc) return;
+  
+  // Remove old section-line styles
+  const old = doc.getElementById('section-line-styles');
+  if (old) old.remove();
+  
+  if (sectionLinesOn) {
+    const el = doc.createElement('style');
+    el.id = 'section-line-styles';
+    el.textContent = style;
+    doc.head.appendChild(el);
+  }
+}
+
+function applyCustomCSS() {
+  const css = document.getElementById('customCSS').value;
+  if (css.trim()) injectCSS(css);
+}
+
+function resetAll() {
+  const doc = getIframeDoc();
+  if (!doc) return;
+  const el = doc.getElementById('editor-styles');
+  if (el) el.remove();
+  styleTag = null;
+  // Also remove section lines
+  const sl = doc.getElementById('section-line-styles');
+  if (sl) sl.remove();
+  // Reset iframe
+  document.getElementById('previewFrame').src = 'http://localhost:5174/';
+}
+</script>
+</body>
+</html>
