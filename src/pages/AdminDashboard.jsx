@@ -670,7 +670,30 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
         <h2 style={{ fontSize: '1.1rem' }}>{e.id ? '✏️ Edit Recipe' : '➕ New Recipe'}</h2>
       </div>
 
-      {/* 🪄 Magic Key: paste image URL or take photo -> OCR + AI -> autofill */}
+      {/* Image URL - above Magic Key, full width */}
+      <div style={{ marginBottom: '1rem' }}>
+        <label style={label}>Image URL</label>
+        <div style={{ display: 'flex', gap: '0.35rem' }}>
+          <input value={e.image} onChange={v => update('image', v.target.value)} placeholder="https://..." style={{ ...inp, flex: 1 }} />
+          <input type="file" accept="image/*" style={{ display: 'none' }} id="recipe-img-upload" onChange={async (ev) => {
+            const file = ev.target.files?.[0]; if (!file) return;
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('folder', 'recipe');
+            const resp = await fetch('/api/upload-file', { method: 'POST', body: fd });
+            const d = await resp.json();
+            if (d.ok) update('image', d.url);
+            ev.target.value = '';
+          }} />
+          <button onClick={() => document.getElementById('recipe-img-upload').click()} style={{ padding: '0.4rem 0.7rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>📁 Browse</button>
+          {e.image && (
+            <img src={e.image} alt="" style={{ width: 48, height: 48, borderRadius: 4, objectFit: 'cover', background: '#0f1219' }}
+              onError={e => e.target.style.display = 'none'} />
+          )}
+        </div>
+      </div>
+
+      {/* 🪄 Magic Key: paste image URL -> Gemini Vision -> autofill */}
       <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #2a3040', borderRadius: 8, background: '#0a1220' }}>
         <label style={{ display: 'block', fontSize: '0.8rem', color: '#59c2ff', fontWeight: 600, marginBottom: '0.25rem' }}>🪄 Magic Key</label>
         <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>Paste recipe image URL, or pick a photo → auto-fills fields</p>
@@ -740,23 +763,6 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div><label style={label}>Title</label><input value={e.title} onChange={v => update('title', v.target.value)} style={inp} /></div>
         <div><label style={label}>Subtitle</label><input value={e.subtitle} onChange={v => update('subtitle', v.target.value)} style={inp} /></div>
-        <div><label style={label}>Image URL</label>
-          <div style={{ display: 'flex', gap: '0.35rem' }}>
-            <input value={e.image} onChange={v => update('image', v.target.value)} style={{ ...inp, flex: 1 }} />
-            <input type="file" accept="image/*" style={{ display: 'none' }} id="recipe-img-upload" onChange={async (ev) => {
-              const file = ev.target.files?.[0]; if (!file) return;
-              const fd = new FormData();
-              fd.append('file', file);
-              fd.append('folder', 'recipe');
-              const resp = await fetch('/api/upload-file', { method: 'POST', body: fd });
-              const d = await resp.json();
-              if (d.ok) update('image', d.url);
-              else console.error('Upload failed', d.error);
-              ev.target.value = '';
-            }} />
-            <button onClick={() => document.getElementById('recipe-img-upload').click()} style={{ padding: '0.4rem 0.7rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>📁 Browse</button>
-          </div>
-        </div>
         <div><label style={label}>Thumbnail</label><input value={e.thumbnail} onChange={v => update('thumbnail', v.target.value)} style={inp} /></div>
         <div><label style={label}>Type</label><input value={e.type} onChange={v => update('type', v.target.value)} style={inp} /></div>
         <div><label style={label}>Cuisine</label><input value={e.cuisine} onChange={v => update('cuisine', v.target.value)} style={inp} /></div>
