@@ -12,3 +12,7 @@ services:
         value: "18"
       - key: PORT
         value: "10000"
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASS
+        sync: false

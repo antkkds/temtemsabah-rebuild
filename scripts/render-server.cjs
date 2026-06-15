@@ -440,6 +440,16 @@ const PORT = process.env.PORT || 3456;
 const HOST = '0.0.0.0'; // Listen on all interfaces for Render
 
 seedFromSource();
+
+// Seed admin account if no users exist
+(async () => {
+  const seeded = await crm.seedAdmin(
+    process.env.ADMIN_EMAIL || 'antkkds@gmail.com',
+    process.env.ADMIN_PASS || 'Antkk@3626'
+  );
+  if (seeded) console.log('  Seeded admin account: ' + (process.env.ADMIN_EMAIL || 'antkkds@gmail.com'));
+})();
+
 server.listen(PORT, HOST, () => {
   console.log(`✏️  TemTemSabah API + Static Server`);
   console.log(`   http://0.0.0.0:${PORT}`);
