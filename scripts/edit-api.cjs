@@ -235,7 +235,11 @@ const server = http.createServer(async (req, res) => {
       const { imageUrl } = await parseBody(req);
       if (!imageUrl) { send(res, 400, { ok: false, error: 'Image URL required' }); return; }
 
-      const geminiKey = process.env.GEMINI_API_KEY || 'AIzaSyCSP3p5DYAIdTfADaajVqlK7w2HX8DIhg0';
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (!geminiKey) {
+        send(res, 200, { ok: false, error: 'GEMINI_API_KEY not set. Add it in Render dashboard → Environment' });
+        return;
+      }
 
       // Download the image
       const fetcher = imageUrl.startsWith('https') ? https : http;
@@ -269,7 +273,7 @@ const server = http.createServer(async (req, res) => {
         const resp = await new Promise((resolve, reject) => {
           const r = https.request({
             hostname: 'generativelanguage.googleapis.com',
-            path: '/v1beta/models/gemini-1.5-flash:generateContent?key=' + geminiKey,
+            path: '/v1/models/gemini-2.5-flash:generateContent?key=' + geminiKey,
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
           }, (res2) => {

@@ -288,7 +288,7 @@ const server = http.createServer(async (req, res) => {
         const resp = await new Promise((resolve, reject) => {
           const r = https.request({
             hostname: 'generativelanguage.googleapis.com',
-            path: '/v1beta/models/gemini-1.5-flash:generateContent?key=' + geminiKey,
+            path: '/v1/models/gemini-2.5-flash:generateContent?key=' + geminiKey,
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
           }, (res2) => {
