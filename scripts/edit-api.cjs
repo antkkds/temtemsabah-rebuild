@@ -3,41 +3,16 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const RECIPES_FILE = path.join(__dirname, '..', 'src', 'data', 'recipes.js');
-const NEWSROOM_FILE = path.join(__dirname, '..', 'src', 'data', 'newsroom.js');
-const CONTENT_FILE = path.join(__dirname, '..', 'src', 'data', 'content.js');
-const CONTACT_FILE = path.join(__dirname, '..', 'src', 'data', 'contact-submissions.json');
-const ADMIN_PASS = 'admin123'; // Simple local-only auth
-
+const supabase = require('./supabase.cjs');
 const crm = require('./crm.cjs');
 
-function readRecipes() {
-  const raw = fs.readFileSync(RECIPES_FILE, 'utf-8');
-  // Extract the RECIPES array from the JS file
-  const match = raw.match(/export const RECIPES = (\[[\s\S]*?\n\]);/);
-  if (!match) return [];
-  try {
-    return JSON.parse(match[1]);
-  } catch {
-    return [];
-  }
-}
-
-function writeRecipes(recipes) {
-  let raw = fs.readFileSync(RECIPES_FILE, 'utf-8');
-  const json = JSON.stringify(recipes, null, 2);
-  raw = raw.replace(/export const RECIPES = [\s\S]*?\n\];/, `export const RECIPES = ${json};`);
-  fs.writeFileSync(RECIPES_FILE, raw, 'utf-8');
-}
+const ADMIN_PASS = 'admin123';
 
 function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
-      try { resolve(JSON.parse(body)); }
-      catch { reject(new Error('Invalid JSON')); }
-    });
+    req.on('end', () => { try { resolve(JSON.parse(body)); } catch { reject(new Error('Invalid JSON')); } });
   });
 }
 
@@ -51,64 +26,59 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200);
-    res.end();
-    return;
-  }
+  if (req.method === 'OPTIONS') { res.writeHead(200); res.end(); return; }
 
   const url = new URL(req.url, `http://${req.headers.host}`);
   const pathname = url.pathname;
+  const auth = req.headers.authorization;
+  const isAuth = () => auth && auth.startsWith('Bearer admin-token-');
+  const ba = auth;
+  const crmAuth = () => { const t = ba?.startsWith('Bearer ') ? ba.slice(7) : ''; return crm.authenticate(t); };
 
   try {
-    // ── Auth ──
-    if (pathname === '/api/login' && req.method === 'POST') {
-      const { password } = await parseBody(req);
-      if (password === ADMIN_PASS) {
-        send(res, 200, { ok: true, token: 'admin-token-' + Date.now() });
-      } else {
-        send(res, 401, { ok: false, error: 'Wrong password' });
-      }
+    // ── Health ──
+    if (pathname === '/api/health') {
+      send(res, 200, { ok: true, service: 'TemTemSabah Admin', db: 'supabase' });
       return;
     }
 
-    // ── CRM: Login with email + password ──
+    // ── Login (CRM) ──
+    if (pathname === '/api/login' && req.method === 'POST') {
+      const { password } = await parseBody(req);
+      send(res, password === ADMIN_PASS ? 200 : 401, password === ADMIN_PASS
+        ? { ok: true, token: 'admin-token-' + Date.now() }
+        : { ok: false, error: 'Wrong password' });
+      return;
+    }
+
+    // ── CRM: Login ──
     if (pathname === '/api/crm/login' && req.method === 'POST') {
       const { email, password } = await parseBody(req);
       const result = await crm.login(email, password);
-      if (result) {
-        send(res, 200, { ok: true, token: result.token, user: result.user });
-      } else {
-        send(res, 401, { ok: false, error: 'Invalid email or password' });
-      }
+      if (result) { send(res, 200, { ok: true, token: result.token, user: result.user }); }
+      else { send(res, 401, { ok: false, error: 'Invalid email or password' }); }
       return;
     }
 
-    // ── CRM: Get current user from token ──
+    // ── CRM: Me ──
     if (pathname === '/api/crm/me' && req.method === 'GET') {
-      const ba = req.headers.authorization;
-      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
-      const user = crm.authenticate(token);
+      const user = crmAuth();
       if (user) { send(res, 200, { ok: true, user }); return; }
       send(res, 401, { ok: false, error: 'Invalid token' });
       return;
     }
 
-    // ── CRM: List users (admin only) ──
+    // ── CRM: List users ──
     if (pathname === '/api/crm/users' && req.method === 'GET') {
-      const ba = req.headers.authorization;
-      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
-      const user = crm.authenticate(token);
+      const user = crmAuth();
       if (!user || !crm.can(user, 'users')) { send(res, 403, { ok: false, error: 'Forbidden' }); return; }
       send(res, 200, { ok: true, users: crm.listUsers() });
       return;
     }
 
-    // ── CRM: Create user (admin only) ──
+    // ── CRM: Create user ──
     if (pathname === '/api/crm/users' && req.method === 'POST') {
-      const ba = req.headers.authorization;
-      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
-      const user = crm.authenticate(token);
+      const user = crmAuth();
       if (!user || !crm.can(user, 'users')) { send(res, 403, { ok: false, error: 'Forbidden' }); return; }
       const data = await parseBody(req);
       const result = await crm.createUser(data);
@@ -117,11 +87,9 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // ── CRM: Update user (admin only) ──
+    // ── CRM: Update user ──
     if (pathname.startsWith('/api/crm/users/') && req.method === 'PUT') {
-      const ba = req.headers.authorization;
-      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
-      const admin = crm.authenticate(token);
+      const admin = crmAuth();
       if (!admin || !crm.can(admin, 'users')) { send(res, 403, { ok: false, error: 'Forbidden' }); return; }
       const userId = pathname.replace('/api/crm/users/', '');
       const data = await parseBody(req);
@@ -131,11 +99,9 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // ── CRM: Delete user (admin only) ──
+    // ── CRM: Delete user ──
     if (pathname.startsWith('/api/crm/users/') && req.method === 'DELETE') {
-      const ba = req.headers.authorization;
-      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
-      const admin = crm.authenticate(token);
+      const admin = crmAuth();
       if (!admin || !crm.can(admin, 'users')) { send(res, 403, { ok: false, error: 'Forbidden' }); return; }
       const userId = pathname.replace('/api/crm/users/', '');
       crm.deleteUser(userId);
@@ -143,255 +109,61 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // ── Check auth for protected routes ──
-    const auth = req.headers.authorization;
-    if (!auth || !auth.startsWith('Bearer admin-token-')) {
-      if (pathname.startsWith('/api/recipes') && req.method !== 'GET') {
-        send(res, 401, { ok: false, error: 'Unauthorized' });
-        return;
-      }
+    // ── GET newsroom ──
+    if (pathname === '/api/newsroom' && req.method === 'GET') {
+      const { data: articles } = await supabase.getArticles(url.searchParams.get('status'));
+      send(res, 200, { ok: true, articles: articles || [] });
+      return;
     }
 
-    // ── GET all recipes ──
+    // ── PUT newsroom ──
+    if (pathname === '/api/newsroom' && req.method === 'PUT') {
+      if (!isAuth() && !crmAuth()?.permissions?.newsroom) { send(res, 401, { ok: false, error: 'Unauthorized' }); return; }
+      const { articles } = await parseBody(req);
+      await supabase.saveArticles(articles);
+      send(res, 200, { ok: true, message: 'Newsroom saved!', count: articles?.length || 0 });
+      return;
+    }
+
+    // ── GET single article ──
+    if (pathname.startsWith('/api/newsroom/') && req.method === 'GET') {
+      const slug = pathname.replace('/api/newsroom/', '');
+      const { data: arts } = await supabase.getArticle(slug);
+      if (arts && arts.length) { send(res, 200, { ok: true, article: arts[0] }); return; }
+      send(res, 404, { ok: false, error: 'Not found' });
+      return;
+    }
+
+    // ── GET recipes ──
     if (pathname === '/api/recipes' && req.method === 'GET') {
-      const raw = fs.readFileSync(RECIPES_FILE, 'utf-8');
-      const match = raw.match(/export const RECIPES = (\[[\s\S]*?\n\]);/);
-      if (match) {
-        // Send as-is — it's valid JS array literal
-        send(res, 200, { ok: true, recipes: eval('(' + match[1] + ')') });
-      } else {
-        send(res, 200, { ok: true, recipes: [] });
-      }
+      const { data: recipes } = await supabase.getRecipes();
+      send(res, 200, { ok: true, recipes: recipes || [] });
       return;
     }
 
-    // ── Save all recipes ──
+    // ── PUT recipes ──
     if (pathname === '/api/recipes' && req.method === 'PUT') {
+      if (!isAuth() && !crmAuth()?.permissions?.recipes) { send(res, 401, { ok: false, error: 'Unauthorized' }); return; }
       const { recipes } = await parseBody(req);
-      writeRecipes(recipes);
-      send(res, 200, { ok: true, message: 'Recipes saved!' });
+      await supabase.saveRecipes(recipes);
+      send(res, 200, { ok: true, message: 'Recipes saved!', count: recipes?.length || 0 });
       return;
     }
 
-    // ── Content.js save ──
+    // ── POST content ──
     if (pathname === '/api/content' && req.method === 'POST') {
+      if (!isAuth() && !crmAuth()?.permissions?.content) { send(res, 401, { ok: false, error: 'Unauthorized' }); return; }
       const data = await parseBody(req);
-      let content = fs.readFileSync(CONTENT_FILE, 'utf-8');
-      for (const [key, val] of Object.entries(data)) {
-        const escaped = val.replace(/'/g, "\\'").replace(/&amp;/g, '&');
-        content = content.replace(new RegExp(`${key}:\\s*'[^']*'`), `${key}: '${escaped}'`);
-      }
-      fs.writeFileSync(CONTENT_FILE, content, 'utf-8');
+      await supabase.saveContent(data);
       send(res, 200, { ok: true, message: 'Content saved!' });
       return;
     }
 
-    // ── GET all newsroom articles ──
-    if (pathname === '/api/newsroom' && req.method === 'GET') {
-      const raw = fs.readFileSync(NEWSROOM_FILE, 'utf-8');
-      const match = raw.match(/export const NEWSROOM_DATA = (\[[\s\S]*?\n\]);/);
-      if (match) {
-        const articles = eval('(' + match[1] + ')');
-        // Support ?status=published filter
-        const status = url.searchParams.get('status');
-        const result = status ? articles.filter(a => a.status === status) : articles;
-        send(res, 200, { ok: true, articles: result });
-      } else {
-        send(res, 200, { ok: true, articles: [] });
-      }
-      return;
-    }
-
-    // ── Save all newsroom articles ──
-    if (pathname === '/api/newsroom' && req.method === 'PUT') {
-      const { articles } = await parseBody(req);
-      let raw = fs.readFileSync(NEWSROOM_FILE, 'utf-8');
-      const json = JSON.stringify(articles, null, 2);
-      raw = raw.replace(/export const NEWSROOM_DATA = [\s\S]*?\n\];/, `export const NEWSROOM_DATA = ${json};`);
-      fs.writeFileSync(NEWSROOM_FILE, raw, 'utf-8');
-      send(res, 200, { ok: true, message: 'Newsroom saved!' });
-      return;
-    }
-
-    // ── GET single article by slug ──
-    if (pathname.startsWith('/api/newsroom/') && req.method === 'GET') {
-      const slug = pathname.replace('/api/newsroom/', '');
-      const raw = fs.readFileSync(NEWSROOM_FILE, 'utf-8');
-      const match = raw.match(/export const NEWSROOM_DATA = (\[[\s\S]*?\n\]);/);
-      if (match) {
-        const articles = eval('(' + match[1] + ')');
-        const article = articles.find(a => a.slug === slug);
-        if (article) {
-          send(res, 200, { ok: true, article });
-        } else {
-          send(res, 404, { ok: false, error: 'Not found' });
-        }
-      } else {
-        send(res, 404, { ok: false, error: 'No data' });
-      }
-      return;
-    }
-
-
-    // ── Magic Key: OCR image → translate → autofill recipe ──
-    if (pathname === '/api/recipe-magic' && req.method === 'POST') {
-      const { imageUrl } = await parseBody(req);
-      if (!imageUrl) { send(res, 400, { ok: false, error: 'Image URL required' }); return; }
-
-      const tmpImg = path.join(__dirname, '..', 'data', 'magic-tmp.jpg');
-      const { execSync } = require('child_process');
-
-      try {
-        const proto = imageUrl.startsWith('https') ? https : http;
-        await new Promise((resolve, reject) => {
-          proto.get(imageUrl, resp => {
-            if (resp.statusCode !== 200) { reject(new Error('HTTP ' + resp.statusCode)); return; }
-            const file = fs.createWriteStream(tmpImg);
-            resp.pipe(file);
-            file.on('finish', () => resolve());
-          }).on('error', reject);
-        });
-      } catch (e) {
-        send(res, 500, { ok: false, error: 'Download failed: ' + e.message });
-        return;
-      }
-
-      let ocrText = '';
-      try {
-        ocrText = execSync('tesseract "' + tmpImg + '" stdout -l chi_sim+eng --psm 6 2>/dev/null', { timeout: 30 }).toString().trim();
-      } catch {
-        try { ocrText = execSync('tesseract "' + tmpImg + '" stdout -l eng 2>/dev/null', { timeout: 30 }).toString().trim(); } catch {}
-      }
-      if (!ocrText) { send(res, 200, { ok: true, ocr: '', error: 'No text found in image' }); return; }
-
-      const payload = JSON.stringify({
-        prompt: 'Extract recipe info from this text. Return ONLY JSON with: title, subtitle, description, prepTime, cookTime, servings, difficulty, ingredients (array of {group, items}), instructions (array), equipment (array), video.',
-        temperature: 0.1, max_tokens: 1024
-      });
-
-      let translated = '';
-      try {
-        const resp = await new Promise((resolve, reject) => {
-          const r = http.request({ hostname: '127.0.0.1', port: 8089, method: 'POST', path: '/completions',
-            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }}, res2 => {
-            let body = '';
-            res2.on('data', c => body += c);
-            res2.on('end', () => resolve(JSON.parse(body)));
-          });
-          r.write(payload);
-          r.end();
-        });
-        translated = resp.choices?.[0]?.text || '';
-      } catch {}
-
-      let recipe = {};
-      try {
-        const jm = translated.match(/{[\s\S]*?}/);
-        if (jm) recipe = JSON.parse(jm[0]);
-      } catch {}
-
-      send(res, 200, { ok: true, ocr: ocrText, recipe, raw: translated });
-      return;
-    }
-
-    // ── Extract metadata from URL (for Auto Generate feature) ──
-    if (pathname === '/api/extract' && req.method === 'POST') {
-      const { url } = await parseBody(req);
-      if (!url) { send(res, 400, { ok: false, error: 'URL required' }); return; }
-
-      const fetcher = url.startsWith('https') ? https : http;
-      fetcher.get(url, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0 (compatible; HermesAgent/1.0)' } }, (resp) => {
-        let data = '';
-        resp.on('data', chunk => data += chunk);
-        resp.on('end', () => {
-          const meta = { title: '', description: '', image: '', site_name: '' };
-
-          // Extract OG tags
-          const ogTitle = data.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i);
-          if (ogTitle) meta.title = ogTitle[1];
-
-          const ogDesc = data.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i);
-          if (ogDesc) meta.description = ogDesc[1];
-
-          const ogImage = data.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i);
-          if (ogImage) meta.image = ogImage[1];
-
-          const ogSite = data.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']*)["']/i);
-          if (ogSite) meta.site_name = ogSite[1];
-
-          // Fallback to standard meta
-          if (!meta.title) {
-            const titleTag = data.match(/<title>([^<]*)<\/title>/i);
-            if (titleTag) meta.title = titleTag[1].replace(/\\s*\\|\\s*.*$/, '').trim();
-          }
-          if (!meta.description) {
-            const metaDesc = data.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
-            if (metaDesc) meta.description = metaDesc[1];
-          }
-
-          // Clean up extracted text — decode HTML entities, remove raw newlines
-          const cleanText = (str) => {
-            if (!str) return '';
-            // Decode HTML entities (&#x...; and &#...;)
-            return str
-              .replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCodePoint(parseInt(h, 16)))
-              .replace(/&#(\d+);/g, (m, c) => String.fromCodePoint(parseInt(c, 10)))
-              .replace(/&amp;/g, '&')
-              .replace(/&quot;/g, '"')
-              .replace(/&#39;/g, "'")
-              .replace(/&apos;/g, "'")
-              .replace(/&lt;/g, '<')
-              .replace(/&gt;/g, '>')
-              .replace(/\\n/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-          };
-
-          meta.title = cleanText(meta.title);
-          meta.description = cleanText(meta.description);
-          meta.site_name = cleanText(meta.site_name);
-
-          // For Facebook URLs, special handling
-          if (url.includes('facebook.com') || url.includes('fb.com')) {
-            meta.site_name = 'Facebook';
-            if (!meta.title) meta.title = 'Facebook Post';
-          }
-
-          send(res, 200, { ok: true, meta, source_url: url });
-        });
-      }).on('error', (err) => {
-        send(res, 500, { ok: false, error: 'Failed to fetch URL: ' + err.message });
-      });
-      return;
-    }
-
-    // ── Contact form submission ──
+    // ── POST contact ──
     if (pathname === '/api/contact' && req.method === 'POST') {
-      const form = await parseBody(req);
-      form.timestamp = new Date().toISOString();
-      form.ip = req.socket.remoteAddress;
-      let submissions = [];
-      if (fs.existsSync(CONTACT_FILE)) {
-        try { submissions = JSON.parse(fs.readFileSync(CONTACT_FILE, 'utf-8')); } catch {}
-      }
-      submissions.push(form);
-      fs.writeFileSync(CONTACT_FILE, JSON.stringify(submissions, null, 2), 'utf-8');
-      console.log(`📩 Contact form submission from ${form.name} <${form.email}>`);
-      send(res, 200, { ok: true, message: 'Message received! We will get back to you soon.' });
-      return;
-    }
-
-    // ── View contact submissions (admin only) ──
-    if (pathname === '/api/contact-submissions' && req.method === 'GET') {
-      if (!auth || !auth.startsWith('Bearer admin-token-')) {
-        send(res, 401, { ok: false, error: 'Unauthorized' });
-        return;
-      }
-      let submissions = [];
-      if (fs.existsSync(CONTACT_FILE)) {
-        try { submissions = JSON.parse(fs.readFileSync(CONTACT_FILE, 'utf-8')); } catch {}
-      }
-      send(res, 200, { ok: true, submissions });
+      const data = await parseBody(req);
+      await supabase.saveContact(data);
+      send(res, 200, { ok: true, message: 'Message received!' });
       return;
     }
 
@@ -399,30 +171,53 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/upload' && req.method === 'POST') {
       const { image, name } = await parseBody(req);
       if (!image) { send(res, 400, { ok: false, error: 'No image data' }); return; }
-
       const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
       if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
       const ext = (name || '.jpg').split('.').pop() || 'jpg';
       const filename = Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext.replace(/[^a-zA-Z0-9]/g, '');
       const buffer = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
       fs.writeFileSync(path.join(uploadsDir, filename), buffer);
-
       send(res, 200, { ok: true, url: '/temtemsabah/uploads/' + filename });
+      return;
+    }
+
+    // ── Extract URL metadata ──
+    if (pathname === '/api/extract' && req.method === 'POST') {
+      const { url: targetUrl } = await parseBody(req);
+      if (!targetUrl) { send(res, 400, { ok: false, error: 'URL required' }); return; }
+      const fetcher = targetUrl.startsWith('https') ? https : http;
+      try {
+        const data = await new Promise((resolve, reject) => {
+          fetcher.get(targetUrl, { timeout: 10000, headers: { 'User-Agent': 'Mozilla/5.0' } }, (resp) => {
+            let d = ''; resp.on('data', c => d += c); resp.on('end', () => resolve(d));
+          }).on('error', reject);
+        });
+        const og = (p) => { const r = data.match(new RegExp(`<meta[^>]*property=["']og:${p}["'][^>]*content=["']([^"']*)["']`, 'i')); return r ? r[1] : ''; };
+        const meta = { title: og('title') || (data.match(/<title>([^<]*)<\/title>/i)?.[1] || '').replace(/\s*\|\s*.*$/, '').trim(), description: og('description') || data.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i)?.[1] || '', image: og('image'), site_name: og('site_name') };
+        const clean = (s) => s ? s.replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (m, c) => String.fromCodePoint(parseInt(c, 10))).replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\\n/g, ' ').replace(/\s+/g, ' ').trim() : '';
+        send(res, 200, { ok: true, meta: { title: clean(meta.title), description: clean(meta.description), image: clean(meta.image), site_name: clean(meta.site_name) } });
+      } catch (e) { send(res, 500, { ok: false, error: 'Fetch failed: ' + e.message }); }
+      return;
+    }
+
+    // ── Recipe Magic ──
+    if (pathname === '/api/recipe-magic' && req.method === 'POST') {
+      send(res, 200, { ok: false, error: 'Recipe Magic uses local OCR (tesseract + llama-server). Run the Render version for cloud-based AI.' });
       return;
     }
 
     send(res, 404, { ok: false, error: 'Not found' });
   } catch (e) {
+    console.error('Server error:', e);
     send(res, 500, { ok: false, error: e.message });
   }
 });
 
-const PORT = 3456;
+const PORT = process.env.PORT || 3456;
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`✏️  Edit API running on http://127.0.0.1:${PORT}`);
-  console.log(`   POST /api/login - Authenticate`);
-  console.log(`   GET  /api/recipes - List all recipes`);
-  console.log(`   PUT  /api/recipes - Save all recipes`);
-  console.log(`   POST /api/content - Save content.js fields`);
+  console.log(`✏️  Edit API (Supabase) running on http://127.0.0.1:${PORT}`);
+  console.log(`   POST /api/crm/login - CRM login`);
+  console.log(`   GET  /api/crm/users - List users (admin)`);
+  console.log(`   GET  /api/newsroom - List newsroom`);
+  console.log(`   GET  /api/recipes - List recipes`);
 });
