@@ -1,7 +1,7 @@
 services:
   - type: web
     name: temtemsabah-admin
-    env: node
+    runtime: node
     region: singapore
     plan: free
     buildCommand: npm install && npm run build
