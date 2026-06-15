@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: temtemsabah-admin
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /temtemsabah/
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      - key: PORT
+        value: "10000"
