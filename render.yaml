@@ -1,8 +1,7 @@
-name: temtemsabah-rebuild
 services:
   - type: web
     name: temtemsabah-admin
-    runtime: node
+    env: node
     region: singapore
     plan: free
     buildCommand: npm install && npm run build
