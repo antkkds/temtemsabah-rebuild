@@ -13,9 +13,11 @@ const EMPTY_ARTICLE = {
 
 const inp = { padding: '0.5rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', fontSize: '0.85rem', outline: 'none', width: '100%' };
 
-export default function AdminDashboard({ token, onLogout }) {
-  const [tab, setTab] = useState('newsroom'); // 'newsroom' | 'recipes'
-  const [view, setView] = useState('list'); // 'list' | 'edit' | 'recipe-edit'
+export default function AdminDashboard() {
+  const token = localStorage.getItem('crm_token');
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem('crm_user') || 'null'));
+  const [tab, setTab] = useState('newsroom');
+  const [view, setView] = useState('list');
   const [articles, setArticles] = useState([]);
   const [recipes, setRecipes] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -25,6 +27,17 @@ export default function AdminDashboard({ token, onLogout }) {
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [crmUsers, setCrmUsers] = useState([]);
+  const [editingUser, setEditingUser] = useState(null);
+
+  const isAdmin = () => user?.role === 'admin';
+  const can = (perm) => user?.role === 'admin' || !!user?.permissions?.[perm];
+
+  const logout = () => {
+    localStorage.removeItem('crm_token');
+    localStorage.removeItem('crm_user');
+    window.location.reload();
+  };
 
   // 🪄 Magic Link: auto-fill recipe from URL params
   useEffect(() => {
@@ -46,12 +59,17 @@ export default function AdminDashboard({ token, onLogout }) {
   }, []);
 
   const fetchData = () => {
-    Promise.all([
-      fetch(API + '/api/newsroom').then(r => r.json()),
-      fetch(API + '/api/recipes').then(r => r.json()),
-    ]).then(([n, r]) => {
+    const fetches = [
+      fetch('/api/newsroom').then(r => r.json()),
+      fetch('/api/recipes').then(r => r.json()),
+    ];
+    if (can('users')) {
+      fetches.push(fetch('/api/crm/users', { headers }).then(r => r.json()));
+    }
+    Promise.all(fetches).then(([n, r, u]) => {
       setArticles(n.articles || []);
       setRecipes(r.recipes || []);
+      if (u) setCrmUsers(u.users || []);
       setLoading(false);
     }).catch(() => setLoading(false));
   };
@@ -91,9 +109,15 @@ export default function AdminDashboard({ token, onLogout }) {
           background: tab === 'recipes' ? '#00373e' : 'transparent',
           color: tab === 'recipes' ? 'white' : '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
         }}>🍽 Recipes</button>
+        {can('users') && <button onClick={() => { setTab('users'); setView('list'); }} style={{
+          padding: '0.4rem 1rem', borderRadius: 6, border: 'none',
+          background: tab === 'users' ? '#00373e' : 'transparent',
+          color: tab === 'users' ? 'white' : '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
+        }}>👥 Users</button>}
         <div style={{ flex: 1 }} />
+        {user && <span style={{ fontSize: '0.75rem', color: '#6b7280', marginRight: '0.5rem' }}>{user.email}</span>}
         {msg && <span style={{ fontSize: '0.8rem', color: '#7fd962' }}>{msg}</span>}
-        <button onClick={onLogout} style={{
+        <button onClick={logout} style={{
           display: 'flex', alignItems: 'center', gap: 4, padding: '0.4rem 0.75rem',
           borderRadius: 6, border: '1px solid #2a3040', background: 'transparent', color: '#9ca3af', cursor: 'pointer', fontSize: '0.8rem'
         }}><LogOut size={14} /></button>
@@ -177,12 +201,90 @@ export default function AdminDashboard({ token, onLogout }) {
             </div>
           ))}
         </div>
+      ) : tab === 'users' ? (
+        <div style={{ padding: '1.5rem', maxWidth: 700, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h2 style={{ fontSize: '1.1rem' }}>👥 User Management</h2>
+            <button onClick={() => setEditingUser({})} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0.4rem 0.75rem',
+              borderRadius: 6, border: 'none', background: '#00373e', color: 'white', cursor: 'pointer', fontSize: '0.8rem'
+            }}><Plus size={14} /> Add User</button>
+          </div>
+          {editingUser !== null ? (
+            <div style={{ background: '#1a1f2e', padding: '1.5rem', borderRadius: 8, border: '1px solid #2a3040' }}>
+              <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>{editingUser.id ? '✏️ Edit User' : '➕ Add User'}</h3>
+              <div style={{ display: 'grid', gap: '0.75rem' }}>
+                <div><label style={labelS}>Email</label><input value={editingUser.email || ''} onChange={e => setEditingUser({...editingUser, email: e.target.value})} style={inp} placeholder="email@example.com" /></div>
+                <div><label style={labelS}>Name</label><input value={editingUser.name || ''} onChange={e => setEditingUser({...editingUser, name: e.target.value})} style={inp} placeholder="Display name" /></div>
+                <div><label style={labelS}>{editingUser.id ? 'New Password (leave blank to keep)' : 'Password'}</label><input type="password" value={editingUser._password || ''} onChange={e => setEditingUser({...editingUser, _password: e.target.value})} style={inp} placeholder={editingUser.id ? 'Leave blank to keep current' : 'Password'} /></div>
+                <div><label style={labelS}>Role</label>
+                  <select value={editingUser.role || 'editor'} onChange={e => setEditingUser({...editingUser, role: e.target.value})} style={inp}>
+                    <option value="editor">Editor</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div><label style={labelS}>Permissions</label>
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                    {['newsroom','recipes','users','content'].map(p => (
+                      <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#9ca3af', fontSize: '0.85rem', cursor: 'pointer' }}>
+                        <input type="checkbox" checked={editingUser.permissions?.[p] || false}
+                          onChange={e => setEditingUser({...editingUser, permissions: {...(editingUser.permissions||{}), [p]: e.target.checked}})}
+                          style={{ accentColor: '#00373e' }}
+                        /> {p}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button onClick={async () => {
+                  if (editingUser.id) {
+                    const body = { name: editingUser.name, email: editingUser.email, role: editingUser.role, permissions: editingUser.permissions };
+                    if (editingUser._password) body.password = editingUser._password;
+                    const r = await fetch('/api/crm/users/' + editingUser.id, { method: 'PUT', headers, body: JSON.stringify(body) });
+                    const d = await r.json();
+                    if (d.ok) { setMsg('✅ User updated'); fetchData(); setEditingUser(null); }
+                    else setMsg('❌ ' + (d.error || 'Failed'));
+                  } else {
+                    const r = await fetch('/api/crm/users', { method: 'POST', headers, body: JSON.stringify({ email: editingUser.email, password: editingUser._password, name: editingUser.name, role: editingUser.role, permissions: editingUser.permissions }) });
+                    const d = await r.json();
+                    if (d.ok) { setMsg('✅ User created'); fetchData(); setEditingUser(null); }
+                    else setMsg('❌ ' + (d.error || 'Failed'));
+                  }
+                  setTimeout(() => setMsg(''), 2000);
+                }} style={{ padding: '0.5rem 1.5rem', borderRadius: 6, border: 'none', background: '#00373e', color: 'white', cursor: 'pointer', fontSize: '0.85rem' }}>💾 Save</button>
+                <button onClick={() => setEditingUser(null)} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #2a3040', background: 'transparent', color: '#9ca3af', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              {crmUsers.map(u => (
+                <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', background: '#1a1f2e', borderRadius: 6, marginBottom: '0.5rem', border: '1px solid #2a3040' }}>
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{u.name} <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>({u.email})</span></div>
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Role: {u.role} | Permissions: {Object.entries(u.permissions||{}).filter(([,v]) => v).map(([k]) => k).join(', ')}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button onClick={() => setEditingUser(u)} style={{ background: 'none', border: 'none', color: '#59c2ff', cursor: 'pointer' }}><Pencil size={14} /></button>
+                    {u.id !== crmUsers.find(x => x.role === 'admin')?.id && <button onClick={async () => {
+                      if (!confirm('Delete ' + u.email + '?')) return;
+                      const r = await fetch('/api/crm/users/' + u.id, { method: 'DELETE', headers });
+                      const d = await r.json();
+                      if (d.ok) { setMsg('✅ User deleted'); fetchData(); }
+                      setTimeout(() => setMsg(''), 2000);
+                    }} style={{ background: 'none', border: 'none', color: '#f26d78', cursor: 'pointer' }}><Trash2 size={14} /></button>}
+                  </div>
+                </div>
+              ))}
+              {crmUsers.length === 0 && <p style={{ color: '#6b7280', textAlign: 'center', padding: '2rem' }}>No users yet</p>}
+            </div>
+          )}
+        </div>
       ) : null}
     </div>
   );
 }
 
-// ── Article List ──
+const labelS = { display: 'block', fontSize: '0.75rem', color: '#9ca3af', fontWeight: 500, marginBottom: '0.25rem' };
 function ArticleList({ articles, search, setSearch, filterType, setFilterType, filterStatus, setFilterStatus, onAdd, onEdit, onDelete }) {
   const filtered = articles.filter(a => {
     if (search && !a.title.toLowerCase().includes(search.toLowerCase()) && !a.excerpt?.toLowerCase().includes(search.toLowerCase())) return false;

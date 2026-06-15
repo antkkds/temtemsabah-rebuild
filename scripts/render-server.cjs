@@ -12,6 +12,8 @@ const CONTACTS_JSON = path.join(DATA_DIR, 'contacts.json');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const ADMIN_PASS = 'admin123'; // Change this in production!
 
+const crm = require('./crm.cjs');
+
 // ── Data helpers ──
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -164,6 +166,77 @@ const server = http.createServer(async (req, res) => {
       } else {
         send(res, 401, { ok: false, error: 'Wrong password' });
       }
+      return;
+    }
+
+    // ── CRM: Login with email + password ──
+    if (pathname === '/api/crm/login' && req.method === 'POST') {
+      const { email, password } = await parseBody(req);
+      const result = await crm.login(email, password);
+      if (result) {
+        send(res, 200, { ok: true, token: result.token, user: result.user });
+      } else {
+        send(res, 401, { ok: false, error: 'Invalid email or password' });
+      }
+      return;
+    }
+
+    // ── CRM: Get current user from token ──
+    if (pathname === '/api/crm/me' && req.method === 'GET') {
+      const ba = req.headers.authorization;
+      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
+      const user = crm.authenticate(token);
+      if (user) { send(res, 200, { ok: true, user }); return; }
+      send(res, 401, { ok: false, error: 'Invalid token' });
+      return;
+    }
+
+    // ── CRM: List users (admin only) ──
+    if (pathname === '/api/crm/users' && req.method === 'GET') {
+      const ba = req.headers.authorization;
+      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
+      const user = crm.authenticate(token);
+      if (!user || !crm.can(user, 'users')) { send(res, 403, { ok: false, error: 'Forbidden' }); return; }
+      send(res, 200, { ok: true, users: crm.listUsers() });
+      return;
+    }
+
+    // ── CRM: Create user (admin only) ──
+    if (pathname === '/api/crm/users' && req.method === 'POST') {
+      const ba = req.headers.authorization;
+      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
+      const user = crm.authenticate(token);
+      if (!user || !crm.can(user, 'users')) { send(res, 403, { ok: false, error: 'Forbidden' }); return; }
+      const data = await parseBody(req);
+      const result = await crm.createUser(data);
+      if (result.error) { send(res, 400, { ok: false, error: result.error }); return; }
+      send(res, 200, { ok: true, user: result.user });
+      return;
+    }
+
+    // ── CRM: Update user (admin only) ──
+    if (pathname.startsWith('/api/crm/users/') && req.method === 'PUT') {
+      const ba = req.headers.authorization;
+      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
+      const admin = crm.authenticate(token);
+      if (!admin || !crm.can(admin, 'users')) { send(res, 403, { ok: false, error: 'Forbidden' }); return; }
+      const userId = pathname.replace('/api/crm/users/', '');
+      const data = await parseBody(req);
+      const result = await crm.updateUser(userId, data);
+      if (result.error) { send(res, 400, { ok: false, error: result.error }); return; }
+      send(res, 200, { ok: true, user: result.user });
+      return;
+    }
+
+    // ── CRM: Delete user (admin only) ──
+    if (pathname.startsWith('/api/crm/users/') && req.method === 'DELETE') {
+      const ba = req.headers.authorization;
+      const token = ba?.startsWith('Bearer ') ? ba.slice(7) : '';
+      const admin = crm.authenticate(token);
+      if (!admin || !crm.can(admin, 'users')) { send(res, 403, { ok: false, error: 'Forbidden' }); return; }
+      const userId = pathname.replace('/api/crm/users/', '');
+      crm.deleteUser(userId);
+      send(res, 200, { ok: true, message: 'User deleted' });
       return;
     }
 

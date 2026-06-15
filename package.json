@@ -10,6 +10,7 @@
     "start": "node scripts/render-server.cjs"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "esbuild": "^0.19.12",
     "lucide-react": "^1.17.0",
     "react": "^19.2.6",
