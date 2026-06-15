@@ -230,52 +230,40 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // ── Recipe Magic (Google Gemini Vision) ──
+    // ── Recipe Magic (NVIDIA Llama 3.2 90B Vision) ──
     if (pathname === '/api/recipe-magic' && req.method === 'POST') {
       const { imageUrl } = await parseBody(req);
       if (!imageUrl) { send(res, 400, { ok: false, error: 'Image URL required' }); return; }
 
-      const geminiKey = process.env.GEMINI_API_KEY;
-      if (!geminiKey) {
-        send(res, 200, { ok: false, error: 'GEMINI_API_KEY not set. Add it in Render dashboard → Environment' });
+      const nvKey = process.env.NVIDIA_API_KEY;
+      if (!nvKey) {
+        send(res, 200, { ok: false, error: 'NVIDIA_API_KEY not set' });
         return;
       }
-
-      // Download the image
-      const fetcher = imageUrl.startsWith('https') ? https : http;
-      let imageBuffer;
-      try {
-        imageBuffer = await new Promise((resolve, reject) => {
-          fetcher.get(imageUrl, { timeout: 15000, headers: { 'User-Agent': 'Mozilla/5.0' } }, (resp) => {
-            const chunks = [];
-            resp.on('data', c => chunks.push(c));
-            resp.on('end', () => resolve(Buffer.concat(chunks)));
-          }).on('error', reject);
-        });
-      } catch (e) {
-        send(res, 200, { ok: false, error: 'Failed to download image: ' + e.message });
-        return;
-      }
-
-      const base64 = imageBuffer.toString('base64');
-      const mime = imageUrl.match(/\.(png|gif|webp)/i) ? 'image/' + imageUrl.match(/\.(png|gif|webp)/i)[1] : 'image/jpeg';
 
       const payload = JSON.stringify({
-        contents: [{
-          parts: [
-            { text: 'Extract recipe information from this image. Return ONLY valid JSON with these fields: title, subtitle, description, prep, cook, servings, ingredients (array of objects with group and items array), instructions (array of strings), equipment (array), tips, video. If ingredients have groups, separate them. If no info for a field, use empty string or empty array. Return ONLY the JSON object, no markdown, no code blocks, no explanation.' },
-            { inline_data: { mime_type: mime, data: base64 } }
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'Extract recipe information from this image. Return ONLY valid JSON with these fields: title, subtitle, description, prep, cook, servings, ingredients (array of objects with group and items array), instructions (array of strings), equipment (array), tips, video. If ingredients have groups, separate them. If no info for a field, use empty string or empty array. Return ONLY the JSON object, no markdown, no code blocks, no explanation.' },
+            { type: 'image_url', image_url: { url: imageUrl } }
           ]
-        }]
+        }],
+        max_tokens: 2048,
+        temperature: 0.1,
       });
 
       try {
         const resp = await new Promise((resolve, reject) => {
           const r = https.request({
-            hostname: 'generativelanguage.googleapis.com',
-            path: '/v1/models/gemini-2.5-flash:generateContent?key=' + geminiKey,
+            hostname: 'ai.api.nvidia.com',
+            path: '/v1/gr/meta/llama-3.2-11b-vision-instruct/chat/completions',
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+            headers: {
+              'Authorization': 'Bearer ' + nvKey,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(payload),
+            },
           }, (res2) => {
             let d = ''; res2.on('data', c => d += c);
             res2.on('end', () => resolve({ status: res2.statusCode, body: d }));
@@ -284,12 +272,12 @@ const server = http.createServer(async (req, res) => {
         });
 
         if (resp.status !== 200) {
-          send(res, 200, { ok: false, error: 'Gemini API error: ' + resp.body.slice(0, 300) });
+          send(res, 200, { ok: false, error: 'NVIDIA API error: ' + resp.body.slice(0, 300) });
           return;
         }
 
         const parsed = JSON.parse(resp.body);
-        const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const text = parsed.choices?.[0]?.message?.content || '';
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         let recipe = {};
         if (jsonMatch) { try { recipe = JSON.parse(jsonMatch[0]); } catch {} }
