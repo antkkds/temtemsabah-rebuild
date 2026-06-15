@@ -701,10 +701,12 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
             }
             btn.disabled = false; btn.textContent = '🪄 Magic';
           }} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: 'none', background: '#59c2ff', color: '#000', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>🪄 Magic</button>
-          <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} id="magic-photo-input" onChange={async (ev) => {
+          <input type="file" accept="image/*" style={{ display: 'none' }} id="magic-photo-input" onChange={async (ev) => {
             const file = ev.target.files?.[0]; if (!file) return;
             const status = document.getElementById('magic-status');
             status.textContent = '📤 Uploading photo...';
+            // Remember for next time
+            try { localStorage.setItem('last_recipe_photo', file.name); } catch {}
             const reader = new FileReader();
             reader.onload = async () => {
               const resp = await fetch('/api/upload', {
@@ -732,6 +734,9 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
             reader.readAsDataURL(file);
           }} />
           <button onClick={() => document.getElementById('magic-photo-input').click()} style={{ padding: '0.5rem 0.8rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>📷 Photo</button>
+          {typeof window !== 'undefined' && localStorage.getItem('last_recipe_photo') && (
+            <span style={{ fontSize: '0.7rem', color: '#6b7280', alignSelf: 'center' }}>last: {localStorage.getItem('last_recipe_photo').slice(0, 20)}</span>
+          )}
         </div>
         <p id="magic-status" style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.35rem' }}></p>
       </div>
