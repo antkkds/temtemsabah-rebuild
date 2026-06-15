@@ -9,6 +9,7 @@ const RECIPES_JSON = path.join(DATA_DIR, 'recipes.json');
 const NEWSROOM_JSON = path.join(DATA_DIR, 'newsroom.json');
 const CONTENT_JSON = path.join(DATA_DIR, 'content.json');
 const CONTACTS_JSON = path.join(DATA_DIR, 'contacts.json');
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const ADMIN_PASS = 'admin123'; // Change this in production!
 
 // ── Data helpers ──
@@ -279,6 +280,25 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ── Upload image ──
+    if (pathname === '/api/upload' && req.method === 'POST') {
+      const { image, name } = await parseBody(req);
+      if (!image) { send(res, 400, { ok: false, error: 'No image data' }); return; }
+      
+      ensureDataDir();
+      if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+      const ext = (name || '.jpg').split('.').pop() || 'jpg';
+      const filename = Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext.replace(/[^a-zA-Z0-9]/g, '');
+      const filepath = path.join(UPLOADS_DIR, filename);
+      
+      const buffer = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+      fs.writeFileSync(filepath, buffer);
+      
+      send(res, 200, { ok: true, url: '/uploads/' + filename });
+      return;
+    }
+
     // ── Export all data for backup ──
     if (pathname === '/api/export' && req.method === 'GET') {
       const data = {
@@ -297,6 +317,20 @@ const server = http.createServer(async (req, res) => {
     }
 
     // ══════════════ STATIC FILES (SPA at /temtemsabah/) ══════════════
+
+    // Serve uploaded files at /uploads/
+    if (pathname.startsWith('/uploads/')) {
+      const filename = pathname.replace('/uploads/', '');
+      const filePath = path.join(UPLOADS_DIR, filename);
+      // Prevent directory traversal
+      if (filename.includes('..') || filename.includes('~')) {
+        res.writeHead(403); res.end('Forbidden'); return;
+      }
+      if (fs.existsSync(filePath)) {
+        serveStatic(res, filePath);
+        return;
+      }
+    }
 
     // Serve /temtemsabah/ → dist/ files
     if (pathname.startsWith('/temtemsabah/')) {

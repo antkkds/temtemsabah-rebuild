@@ -322,6 +322,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ── Upload image ──
+    if (pathname === '/api/upload' && req.method === 'POST') {
+      const { image, name } = await parseBody(req);
+      if (!image) { send(res, 400, { ok: false, error: 'No image data' }); return; }
+
+      const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+      if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+      const ext = (name || '.jpg').split('.').pop() || 'jpg';
+      const filename = Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext.replace(/[^a-zA-Z0-9]/g, '');
+      const buffer = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+      fs.writeFileSync(path.join(uploadsDir, filename), buffer);
+
+      send(res, 200, { ok: true, url: '/temtemsabah/uploads/' + filename });
+      return;
+    }
+
     send(res, 404, { ok: false, error: 'Not found' });
   } catch (e) {
     send(res, 500, { ok: false, error: e.message });

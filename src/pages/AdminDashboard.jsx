@@ -606,7 +606,25 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
         <div><label style={label}>Title</label><input value={e.title} onChange={v => update('title', v.target.value)} style={inp} /></div>
         <div><label style={label}>Subtitle</label><input value={e.subtitle} onChange={v => update('subtitle', v.target.value)} style={inp} /></div>
-        <div><label style={label}>Image URL</label><input value={e.image} onChange={v => update('image', v.target.value)} style={inp} /></div>
+        <div><label style={label}>Image URL</label>
+          <div style={{ display: 'flex', gap: '0.35rem' }}>
+            <input value={e.image} onChange={v => update('image', v.target.value)} style={{ ...inp, flex: 1 }} />
+            <input type="file" accept="image/*" style={{ display: 'none' }} id="recipe-img-upload" onChange={async (ev) => {
+              const file = ev.target.files?.[0]; if (!file) return;
+              const reader = new FileReader();
+              reader.onload = async () => {
+                const resp = await fetch('/api/upload', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ image: reader.result, name: file.name }),
+                });
+                const d = await resp.json();
+                if (d.ok) update('image', d.url);
+              };
+              reader.readAsDataURL(file);
+            }} />
+            <button onClick={() => document.getElementById('recipe-img-upload').click()} style={{ padding: '0.4rem 0.7rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>📁 Browse</button>
+          </div>
+        </div>
         <div><label style={label}>Thumbnail</label><input value={e.thumbnail} onChange={v => update('thumbnail', v.target.value)} style={inp} /></div>
         <div><label style={label}>Type</label><input value={e.type} onChange={v => update('type', v.target.value)} style={inp} /></div>
         <div><label style={label}>Cuisine</label><input value={e.cuisine} onChange={v => update('cuisine', v.target.value)} style={inp} /></div>
