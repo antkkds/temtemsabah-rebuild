@@ -75,6 +75,40 @@ module.exports = {
     return fetch('contacts', 'POST', JSON.stringify({ ...data, received_at: new Date().toISOString() }));
   },
 
+  // Upload file to Supabase Storage
+  uploadFile: async (buffer, filename, folder = 'recipe') => {
+    const ext = filename.split('.').pop() || 'jpg';
+    const name = Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    const path = folder + '/' + name;
+    const mime = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
+    return new Promise((resolve, reject) => {
+      const opts = {
+        hostname: SUPABASE_URL,
+        path: '/storage/v1/object/' + path,
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + SVC_KEY,
+          'Content-Type': mime,
+          'Content-Length': buffer.length,
+        },
+      };
+      const r = https.request(opts, (res) => {
+        let d = '';
+        res.on('data', c => d += c);
+        res.on('end', () => {
+          if (res.statusCode < 300) {
+            resolve({ ok: true, url: `https://${SUPABASE_URL}/storage/v1/object/public/${path}` });
+          } else {
+            resolve({ ok: false, error: d.slice(0, 200) });
+          }
+        });
+      });
+      r.on('error', reject);
+      r.write(buffer);
+      r.end();
+    });
+  },
+
   // Raw query helpers
   fetch,
 };

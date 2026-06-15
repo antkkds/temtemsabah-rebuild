@@ -704,19 +704,16 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
           <input type="file" accept="image/*" style={{ display: 'none' }} id="magic-photo-input" onChange={async (ev) => {
             const file = ev.target.files?.[0]; if (!file) return;
             const status = document.getElementById('magic-status');
-            status.textContent = '📤 Uploading photo...';
-            // Remember for next time
+            status.textContent = '📤 Uploading...';
             try { localStorage.setItem('last_recipe_photo', file.name); } catch {}
-            const reader = new FileReader();
-            reader.onload = async () => {
-              const resp = await fetch('/api/upload', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: reader.result, name: file.name }),
-              });
-              const data = await resp.json();
-              if (!data.ok) { status.textContent = '❌ Upload failed'; return; }
-              document.getElementById('magic-url-input').value = data.url;
-              status.textContent = '🪄 Processing with AI...';
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('folder', 'recipe');
+            const resp = await fetch('/api/upload-file', { method: 'POST', body: fd });
+            const data = await resp.json();
+            if (!data.ok) { status.textContent = '❌ Upload failed: ' + (data.error || ''); ev.target.value = ''; return; }
+            document.getElementById('magic-url-input').value = data.url;
+            status.textContent = '🪄 Processing with AI...';
               const btn = document.getElementById('magic-btn');
               btn.disabled = true; btn.textContent = '⏳';
               try {
@@ -729,10 +726,9 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
                 else if (d2.ocr) { status.textContent = '⚠️ OCR found text but could not parse.'; }
                 else { status.textContent = '❌ ' + (d2.error || 'Failed'); }
               } catch (err) { status.textContent = '❌ Error: ' + err.message; }
-              btn.disabled = false; btn.textContent = '🪄 Magic';
-            };
-            reader.readAsDataURL(file);
-          }} />
+                btn.disabled = false; btn.textContent = '🪄 Magic';
+              ev.target.value = '';
+            }} />
           <button onClick={() => document.getElementById('magic-photo-input').click()} style={{ padding: '0.5rem 0.8rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>📷 Photo</button>
           {typeof window !== 'undefined' && localStorage.getItem('last_recipe_photo') && (
             <span style={{ fontSize: '0.7rem', color: '#6b7280', alignSelf: 'center' }}>last: {localStorage.getItem('last_recipe_photo').slice(0, 20)}</span>
@@ -749,16 +745,14 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
             <input value={e.image} onChange={v => update('image', v.target.value)} style={{ ...inp, flex: 1 }} />
             <input type="file" accept="image/*" style={{ display: 'none' }} id="recipe-img-upload" onChange={async (ev) => {
               const file = ev.target.files?.[0]; if (!file) return;
-              const reader = new FileReader();
-              reader.onload = async () => {
-                const resp = await fetch('/api/upload', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ image: reader.result, name: file.name }),
-                });
-                const d = await resp.json();
-                if (d.ok) update('image', d.url);
-              };
-              reader.readAsDataURL(file);
+              const fd = new FormData();
+              fd.append('file', file);
+              fd.append('folder', 'recipe');
+              const resp = await fetch('/api/upload-file', { method: 'POST', body: fd });
+              const d = await resp.json();
+              if (d.ok) update('image', d.url);
+              else console.error('Upload failed', d.error);
+              ev.target.value = '';
             }} />
             <button onClick={() => document.getElementById('recipe-img-upload').click()} style={{ padding: '0.4rem 0.7rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>📁 Browse</button>
           </div>

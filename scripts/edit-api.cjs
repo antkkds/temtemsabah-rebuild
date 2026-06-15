@@ -5,6 +5,7 @@ const path = require('path');
 
 const supabase = require('./supabase.cjs');
 const crm = require('./crm.cjs');
+const busboy = require('busboy');
 
 const ADMIN_PASS = 'admin123';
 
@@ -178,6 +179,35 @@ const server = http.createServer(async (req, res) => {
       const buffer = Buffer.from(image.replace(/^data:image\/\w+;base64,/, ''), 'base64');
       fs.writeFileSync(path.join(uploadsDir, filename), buffer);
       send(res, 200, { ok: true, url: '/temtemsabah/uploads/' + filename });
+      return;
+    }
+
+    // ── Upload file to Supabase Storage (multipart) ──
+    if (pathname === '/api/upload-file' && req.method === 'POST') {
+      const chunks = [];
+      const bb = busboy({ headers: req.headers });
+      let fileBuffer = null;
+      let fileName = 'photo.jpg';
+      let folderName = 'recipe';
+
+      bb.on('file', (fieldname, file, info) => {
+        fileName = info.filename || fileName;
+        file.on('data', (data) => chunks.push(data));
+        file.on('end', () => { fileBuffer = Buffer.concat(chunks); });
+      });
+
+      bb.on('field', (name, val) => {
+        if (name === 'folder') folderName = val;
+      });
+
+      bb.on('finish', async () => {
+        if (!fileBuffer) { send(res, 400, { ok: false, error: 'No file received' }); return; }
+        const result = await supabase.uploadFile(fileBuffer, fileName, folderName);
+        if (result.ok) { send(res, 200, { ok: true, url: result.url }); }
+        else { send(res, 500, { ok: false, error: result.error }); }
+      });
+
+      req.pipe(bb);
       return;
     }
 
