@@ -214,7 +214,7 @@ export default function NewsroomPage() {
 
   useEffect(() => {
     // Try loading from API first, fallback to local data
-    fetch('http://127.0.0.1:3456/api/newsroom?status=published')
+    fetch('/api/newsroom?status=published')
       .then(r => r.json())
       .then(d => {
         if (d.ok && d.articles?.length) {

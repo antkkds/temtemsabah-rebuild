@@ -159,6 +159,68 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+
+    // ── Magic Key: OCR image → translate → autofill recipe ──
+    if (pathname === '/api/recipe-magic' && req.method === 'POST') {
+      const { imageUrl } = await parseBody(req);
+      if (!imageUrl) { send(res, 400, { ok: false, error: 'Image URL required' }); return; }
+
+      const tmpImg = path.join(__dirname, '..', 'data', 'magic-tmp.jpg');
+      const { execSync } = require('child_process');
+
+      try {
+        const proto = imageUrl.startsWith('https') ? https : http;
+        await new Promise((resolve, reject) => {
+          proto.get(imageUrl, resp => {
+            if (resp.statusCode !== 200) { reject(new Error('HTTP ' + resp.statusCode)); return; }
+            const file = fs.createWriteStream(tmpImg);
+            resp.pipe(file);
+            file.on('finish', () => resolve());
+          }).on('error', reject);
+        });
+      } catch (e) {
+        send(res, 500, { ok: false, error: 'Download failed: ' + e.message });
+        return;
+      }
+
+      let ocrText = '';
+      try {
+        ocrText = execSync('tesseract "' + tmpImg + '" stdout -l chi_sim+eng --psm 6 2>/dev/null', { timeout: 30 }).toString().trim();
+      } catch {
+        try { ocrText = execSync('tesseract "' + tmpImg + '" stdout -l eng 2>/dev/null', { timeout: 30 }).toString().trim(); } catch {}
+      }
+      if (!ocrText) { send(res, 200, { ok: true, ocr: '', error: 'No text found in image' }); return; }
+
+      const payload = JSON.stringify({
+        prompt: 'Extract recipe info from this text. Return ONLY JSON with: title, subtitle, description, prepTime, cookTime, servings, difficulty, ingredients (array of {group, items}), instructions (array), equipment (array), video.',
+        temperature: 0.1, max_tokens: 1024
+      });
+
+      let translated = '';
+      try {
+        const resp = await new Promise((resolve, reject) => {
+          const r = http.request({ hostname: '127.0.0.1', port: 8089, method: 'POST', path: '/completions',
+            headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }}, res2 => {
+            let body = '';
+            res2.on('data', c => body += c);
+            res2.on('end', () => resolve(JSON.parse(body)));
+          });
+          r.write(payload);
+          r.end();
+        });
+        translated = resp.choices?.[0]?.text || '';
+      } catch {}
+
+      let recipe = {};
+      try {
+        const jm = translated.match(/{[\s\S]*?}/);
+        if (jm) recipe = JSON.parse(jm[0]);
+      } catch {}
+
+      send(res, 200, { ok: true, ocr: ocrText, recipe, raw: translated });
+      return;
+    }
+
     // ── Extract metadata from URL (for Auto Generate feature) ──
     if (pathname === '/api/extract' && req.method === 'POST') {
       const { url } = await parseBody(req);

@@ -40,7 +40,7 @@ export default function Contact() {
         headers: { 'Content-Type': 'application/json', 'X-API-Key': 'afm_5c507d1e53a72992c45fc93e8030516646014a026abd8089' },
         body: JSON.stringify(payload),
       }).catch(() => {}),
-      fetch('http://127.0.0.1:3456/api/contact', {
+      fetch('/api/contact', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
       }).catch(() => {}),
     ];

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, LogOut, Search, ExternalLink } from 'lucide-react';
 
-const API = 'http://127.0.0.1:3456';
+const API = '';
 
 const EMPTY_ARTICLE = {
   id: '', title: '', slug: '', excerpt: '', full_content: '',
@@ -322,7 +322,7 @@ function ArticleForm({ article, onSave, onCancel }) {
     
     setAutoLoading(true);
     try {
-      const resp = await fetch('http://127.0.0.1:3456/api/extract', {
+      const resp = await fetch('/api/extract', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: urlToFetch }),
@@ -581,7 +581,7 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
             btn.disabled = true; btn.textContent = '⏳';
             document.getElementById('magic-status').textContent = 'Sending to AI...';
             try {
-              const resp = await fetch('http://127.0.0.1:3456/api/recipe-magic', {
+              const resp = await fetch('/api/recipe-magic', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ imageUrl: url }),
               });

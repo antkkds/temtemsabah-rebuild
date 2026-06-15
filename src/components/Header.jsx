@@ -28,19 +28,19 @@ export default function Header() {
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        maxWidth: 1200, margin: '0 auto', padding: '0 1rem', height: 64,
+        maxWidth: 1200, margin: '0 auto', padding: '0 1rem', height: 140,
       }}>
         {/* Logo */}
         <Link to="/" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="https://temtemsabah.com/wp-content/uploads/2024/11/cropped-Logo-Tem-Tem-Sabah-removebg-preview.png"
-            alt={T.site_name.en} style={{ height: 40, width: 'auto' }} />
+          <img src="https://temtemsabah.com/wp-content/uploads/2024/04/Mum-Approved-Snacks-e1712135606895.png"
+            alt={T.site_name.en} style={{ height: 120, width: 'auto' }} />
           <span style={{ fontFamily: 'Prata, serif', fontSize: '1rem', color: '#00373e', fontWeight: 600 }}>
             {T.site_name[lang] || T.site_name.en}
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+        <nav className="desktop-nav" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
           {navLinks.map(link => (
             <Link key={link.href} to={link.href} onClick={() => setMenuOpen(false)} style={{
               padding: '0.5rem 0.75rem', borderRadius: 6,
@@ -53,19 +53,7 @@ export default function Header() {
             </Link>
           ))}
 
-          {/* Language Switcher */}
-          <div style={{ display: 'flex', gap: 2, marginLeft: 8, borderLeft: '1px solid #eee', paddingLeft: 8 }}>
-            {languages.map(l => (
-              <button key={l.code} onClick={() => setLang(l.code)} style={{
-                padding: '2px 6px', borderRadius: 4, border: 'none',
-                background: lang === l.code ? '#00373e' : 'transparent',
-                color: lang === l.code ? '#fff' : '#999',
-                fontSize: '0.7rem', cursor: 'pointer', fontWeight: lang === l.code ? 600 : 400,
-              }}>
-                {lang === l.code ? l.flag : l.code.toUpperCase()}
-              </button>
-            ))}
-          </div>
+          {/* Language Switcher — moved to floating button */}
         </nav>
 
         {/* Mobile Menu Button */}
@@ -74,7 +62,7 @@ export default function Header() {
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
           style={{
-            display: 'none', background: 'none', border: 'none',
+            background: 'none', border: 'none',
             cursor: 'pointer', padding: 8, marginLeft: 'auto',
             color: '#00373e',
           }}

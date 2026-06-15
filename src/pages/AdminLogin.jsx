@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const API = 'http://127.0.0.1:3456';
+const API = '';
 
 export default function AdminLogin({ onLogin }) {
   const [password, setPassword] = useState('');

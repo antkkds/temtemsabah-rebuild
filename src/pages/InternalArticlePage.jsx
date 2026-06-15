@@ -9,7 +9,7 @@ export default function InternalArticlePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://127.0.0.1:3456/api/newsroom/${slug}`)
+    fetch(`/api/newsroom/${slug}`)
       .then(r => r.json())
       .then(d => {
         if (d.ok && d.article) setArticle(d.article);
