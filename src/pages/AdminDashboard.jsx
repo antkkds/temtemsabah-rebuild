@@ -568,10 +568,10 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
         <h2 style={{ fontSize: '1.1rem' }}>{e.id ? '✏️ Edit Recipe' : '➕ New Recipe'}</h2>
       </div>
 
-      {/* 🪄 Magic Key: paste image URL -> OCR + Gemini -> autofill */}
+      {/* 🪄 Magic Key: paste image URL or take photo -> OCR + AI -> autofill */}
       <div style={{ marginBottom: '1.5rem', padding: '1rem', border: '1px solid #2a3040', borderRadius: 8, background: '#0a1220' }}>
         <label style={{ display: 'block', fontSize: '0.8rem', color: '#59c2ff', fontWeight: 600, marginBottom: '0.25rem' }}>🪄 Magic Key</label>
-        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>Paste recipe image URL or take photo → auto-fills fields</p>
+        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.5rem' }}>Paste recipe image URL, or pick a photo → auto-fills fields</p>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <input id="magic-url-input" placeholder="https://example.com/recipe-photo.jpg" style={{ ...inp, flex: 1, fontSize: '0.8rem' }} />
           <button id="magic-btn" onClick={async () => {
@@ -599,6 +599,37 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
             }
             btn.disabled = false; btn.textContent = '🪄 Magic';
           }} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: 'none', background: '#59c2ff', color: '#000', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>🪄 Magic</button>
+          <input type="file" accept="image/*" capture="environment" style={{ display: 'none' }} id="magic-photo-input" onChange={async (ev) => {
+            const file = ev.target.files?.[0]; if (!file) return;
+            const status = document.getElementById('magic-status');
+            status.textContent = '📤 Uploading photo...';
+            const reader = new FileReader();
+            reader.onload = async () => {
+              const resp = await fetch('/api/upload', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: reader.result, name: file.name }),
+              });
+              const data = await resp.json();
+              if (!data.ok) { status.textContent = '❌ Upload failed'; return; }
+              document.getElementById('magic-url-input').value = data.url;
+              status.textContent = '🪄 Processing with AI...';
+              const btn = document.getElementById('magic-btn');
+              btn.disabled = true; btn.textContent = '⏳';
+              try {
+                const r2 = await fetch('/api/recipe-magic', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ imageUrl: data.url }),
+                });
+                const d2 = await r2.json();
+                if (d2.recipe && d2.recipe.title) { setE(d2.recipe); status.textContent = '✅ Auto-filled! Review and save.'; }
+                else if (d2.ocr) { status.textContent = '⚠️ OCR found text but could not parse.'; }
+                else { status.textContent = '❌ ' + (d2.error || 'Failed'); }
+              } catch (err) { status.textContent = '❌ Error: ' + err.message; }
+              btn.disabled = false; btn.textContent = '🪄 Magic';
+            };
+            reader.readAsDataURL(file);
+          }} />
+          <button onClick={() => document.getElementById('magic-photo-input').click()} style={{ padding: '0.5rem 0.8rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>📷 Photo</button>
         </div>
         <p id="magic-status" style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.35rem' }}></p>
       </div>
