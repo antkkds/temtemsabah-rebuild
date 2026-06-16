@@ -85,10 +85,19 @@ export default function AdminSettings({ setMsg }) {
       const allData = await fetchAllTables();
       const totalRows = Object.values(allData).reduce((sum, arr) => sum + arr.length, 0);
 
+      // Get repo info (injected at build time by Vite)
+      const repoInfo = {
+        commit: typeof __GIT_COMMIT__ !== 'undefined' ? __GIT_COMMIT__ : '',
+        branch: typeof __GIT_BRANCH__ !== 'undefined' ? __GIT_BRANCH__ : 'main',
+        repo: 'antkkds/temtemsabah-rebuild',
+        url: 'https://github.com/antkkds/temtemsabah-rebuild',
+      };
+
       // Insert into backups table
       const { error } = await supabase.from('backups').insert({
         name: name || new Date().toLocaleString(),
         data: allData,
+        repo: repoInfo,
       });
       if (error) throw error;
 
@@ -247,6 +256,11 @@ export default function AdminSettings({ setMsg }) {
               <span style={{ color: '#6b7280', fontSize: '0.75rem', marginLeft: '0.5rem', display: 'block' }}>
                 {b.data ? BACKUP_TABLES.map(t => t + ' (' + (b.data[t]?.length || 0) + ')').join(' · ') : ''}
               </span>
+              {b.repo?.commit && (
+                <span style={{ fontSize: '0.7rem', color: '#4b5563', marginTop: '0.2rem', display: 'block' }}>
+                  📦 {b.repo.repo} @ <a href={b.repo.url + '/tree/' + b.repo.commit} target="_blank" rel="noreferrer" style={{ color: '#59c2ff', textDecoration: 'none' }}>{b.repo.commit}</a>
+                </span>
+              )}
             </div>
             <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
               <button onClick={() => doRestore(b)} disabled={restoring === b.id}
@@ -254,7 +268,11 @@ export default function AdminSettings({ setMsg }) {
                 {restoring === b.id ? '⏳' : '↩ Restore'}
               </button>
               <button onClick={() => downloadBackup(b)}
-                style={{ ...btn, background: '#1a1f2e', color: '#e0e6ed', fontSize: '0.75rem', padding: '0.3rem 0.6rem', border: '1px solid #2a3040' }}>⬇</button>
+                style={{ ...btn, background: '#1a1f2e', color: '#e0e6ed', fontSize: '0.75rem', padding: '0.3rem 0.6rem', border: '1px solid #2a3040' }} title="Download data backup">⬇</button>
+              {b.repo?.url && (
+                <a href={b.repo.url + '/archive/' + b.repo.commit + '.zip'} target="_blank" rel="noreferrer"
+                  style={{ ...btn, background: '#1a1f2e', color: '#e0e6ed', fontSize: '0.75rem', padding: '0.3rem 0.6rem', border: '1px solid #2a3040', textDecoration: 'none' }} title="Download source code">📦</a>
+              )}
               <button onClick={() => deleteBackup(b.id)}
                 style={{ ...btn, background: 'transparent', color: '#f26d78', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}>✕</button>
             </div>
