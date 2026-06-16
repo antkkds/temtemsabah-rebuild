@@ -1,6 +1,116 @@
 // Client-side vision API calls for Magic Key feature
 import { supabase } from './supabase';
 
+// Parse recipe text from AI response (handles Markdown, JSON, plain text)
+function parseRecipeResponse(text) {
+  if (!text) return null;
+
+  // Try JSON first (clean + direct)
+  const cleaned = text.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '').trim();
+  try { const j = JSON.parse(cleaned); if (j.title) return j; } catch {}
+  const objMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (objMatch) {
+    try { return JSON.parse(objMatch[0]); } catch {}
+    try { return JSON.parse(objMatch[0].replace(/,\s*}/g,'}').replace(/,\s*\]/g,']').replace(/'/g,'"').replace(/([{,]\s*)(\w+)(\s*:)/g,'$1"$2"$3')); } catch {}
+  }
+
+  // Strip Markdown bold markers
+  let plain = text.replace(/\*\*/g, '').trim();
+
+  // Split into lines
+  const lines = plain.split('\n').map(l => l.trim()).filter(l => l);
+
+  // Extract fields by looking for "Label:" patterns
+  let title = '', subtitle = '', description = '', prep = '', cook = '', servings = '';
+  const ingLines = [], instLines = [];
+  let currentSection = '';
+
+  for (const l of lines) {
+    // Check for known labels
+    const titleMatch = l.match(/^Title:\s*(.+)/i);
+    const subMatch = l.match(/^Subtitle:\s*(.+)/i);
+    const descMatch = l.match(/^Description:\s*(.+)/i);
+    const prepMatch = l.match(/^Prep:\s*(.+)/i);
+    const cookMatch = l.match(/^Cook:\s*(.+)/i);
+    const serveMatch = l.match(/^Servings?:\s*(.+)/i);
+    const ingHead = l.match(/^Ingredients?:?\s*/i);
+    const instHead = l.match(/^Instructions?:?\s*/i);
+    const bahnHead = l.match(/^BAHAN/i);
+
+    if (titleMatch) { title = titleMatch[1].trim(); currentSection = ''; continue; }
+    if (subMatch) { subtitle = subMatch[1].trim(); currentSection = ''; continue; }
+    if (descMatch) { description = descMatch[1].trim(); currentSection = ''; continue; }
+    if (prepMatch) { prep = prepMatch[1].trim(); currentSection = ''; continue; }
+    if (cookMatch) { cook = cookMatch[1].trim(); currentSection = ''; continue; }
+    if (serveMatch) { servings = serveMatch[1].trim(); currentSection = ''; continue; }
+    if (ingHead || bahnHead) { currentSection = 'ingredients'; continue; }
+    if (instHead) { currentSection = 'instructions'; continue; }
+
+    if (currentSection === 'ingredients') {
+      const item = l.replace(/^[•\-*\d.\s]+/, '').trim();
+      if (item && item.length > 1 && !/^(bahan|langkah|instructions?|cara|alat|equipment|tip|video)/i.test(item)) {
+        ingLines.push(item);
+      }
+    } else if (currentSection === 'instructions') {
+      const item = l.replace(/^[•\-*\d.\s]+/, '').trim();
+      if (item && item.length > 1 && !/^(bahan|langkah|instructions?|cara|alat|equipment|tip|video)/i.test(item)) {
+        instLines.push(item);
+      }
+    }
+  }
+
+  // Fallback title: first non-empty line that's not a label or URL
+  if (!title) {
+    for (const l of lines) {
+      if (/^Recipe Extraction/i.test(l)) continue;
+      if (/^https?:\/\//i.test(l)) continue;
+      if (/^\w+:\s/.test(l)) continue;
+      if (l.length > 3) { title = l; break; }
+    }
+  }
+
+  // Fallback ingredients: look for lines after "BAHAN" or similar
+  if (ingLines.length === 0) {
+    let inIng = false;
+    for (const l of lines) {
+      if (/^BAHAN|ingredients/i.test(l)) { inIng = true; continue; }
+      if (inIng && /^Langkah|instructions?|cara\b/i.test(l)) break;
+      if (inIng) {
+        const item = l.replace(/^[•\-*\s]+/, '').trim();
+        if (item && !/^(bahan|langkah)/i.test(item)) ingLines.push(item);
+      }
+    }
+  }
+
+  // Fallback instructions: look for lines after "Langkah" or "Instructions"
+  if (instLines.length === 0) {
+    let inInst = false;
+    for (const l of lines) {
+      if (/^Langkah|instructions?|cara\b/i.test(l)) { inInst = true; continue; }
+      if (inInst && /^BAHAN|ingredients|alat|equipment|tip/i.test(l)) break;
+      if (inInst) {
+        const item = l.replace(/^[•\-*\s]+/, '').trim();
+        if (item && !/^(langkah|cara)/i.test(item)) instLines.push(item);
+      }
+    }
+  }
+
+  // Remove "11:46 am" style timestamps from prep
+  if (/^\d+:\d+\s*(am|pm)/i.test(prep)) prep = '';
+
+  return {
+    title: title || '',
+    subtitle,
+    description,
+    prep,
+    cook,
+    servings: parseInt(servings) || 4,
+    ingredients: [{ group: '', items: ingLines.map(i => [i, '']) }],
+    instructions: instLines,
+    equipment: [], tips: '', video: '',
+  };
+}
+
 export async function callMagicVision(imageUrl) {
   const settings = JSON.parse(localStorage.getItem('tts_settings') || '{}');
   const key = settings.apiKey;
@@ -8,19 +118,14 @@ export async function callMagicVision(imageUrl) {
   const proxyUrl = settings.proxyUrl || '';
   if (!key) return { error: 'No API key set. Go to Settings to add one.' };
 
-  const prompt = 'Extract recipe information from this image. Return ONLY valid JSON with these fields: title, subtitle, description, prep, cook, servings, ingredients (array of objects with group and items array), instructions (array of strings), equipment (array), tips, video. If ingredients have groups, separate them. If no info for a field, use empty string or empty array. Return ONLY the JSON object, no markdown, no code blocks, no explanation.';
+  const prompt = 'Extract the recipe from this image. Return the recipe data in this exact format:\n\nTitle: [recipe name]\nSubtitle: \nDescription: \nPrep: \nCook: \nServings: \n\nIngredients:\n- [item with quantity]\n- [item with quantity]\n\nInstructions:\n- [step 1]\n- [step 2]';
 
   async function doFetch(url, opts) {
-    // If proxy is configured, route through it
     if (proxyUrl) {
       const proxyResp = await fetch(proxyUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: url,
-          headers: opts.headers,
-          body: opts.body,
-        }),
+        body: JSON.stringify({ url, headers: opts.headers, body: opts.body }),
       });
       if (!proxyResp.ok) {
         const errText = await proxyResp.text();
@@ -28,7 +133,6 @@ export async function callMagicVision(imageUrl) {
       }
       return proxyResp;
     }
-    // Direct call (only works for APIs that support CORS like OpenAI)
     return await fetch(url, opts);
   }
 
@@ -48,14 +152,14 @@ export async function callMagicVision(imageUrl) {
       });
       const data = await resp.json();
       if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-        let text = data.choices[0].message.content;
-        text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-        try { return { recipe: JSON.parse(text) }; } catch { return { ocr: text }; }
+        const text = data.choices[0].message.content;
+        const recipe = parseRecipeResponse(text);
+        if (recipe && recipe.title) return { recipe };
+        return { ocr: text };
       }
-      return { error: (data.error && data.error.message) || 'API error — check your key and proxy settings' };
+      return { error: (data.error && data.error.message) || 'API error' };
 
     } else if (model.startsWith('openai/')) {
-      // OpenAI supports CORS, no proxy needed
       const openaiModel = model === 'openai/gpt-4o' ? 'gpt-4o' : 'gpt-4o-mini';
       const resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -68,9 +172,10 @@ export async function callMagicVision(imageUrl) {
       });
       const data = await resp.json();
       if (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
-        let text = data.choices[0].message.content;
-        text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
-        try { return { recipe: JSON.parse(text) }; } catch { return { ocr: text }; }
+        const text = data.choices[0].message.content;
+        const recipe = parseRecipeResponse(text);
+        if (recipe && recipe.title) return { recipe };
+        return { ocr: text };
       }
       return { error: (data.error && data.error.message) || 'Unknown error' };
     }
@@ -79,7 +184,7 @@ export async function callMagicVision(imageUrl) {
   } catch (err) {
     const msg = err.message || '';
     if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('CORS')) {
-      return { error: 'Browser blocked the request (CORS). Add a Proxy URL in ⚙ Settings or use an OpenAI key (supports CORS).' };
+      return { error: 'Browser blocked the request (CORS). Add a Proxy URL in Settings or use OpenAI.' };
     }
     return { error: msg || 'Network error' };
   }
@@ -90,9 +195,7 @@ export async function deleteUploadedImage(url) {
   if (!url) return;
   const match = url.match(/\/object\/public\/([^/]+)\/(.+)/);
   if (!match) return;
-  const bucket = match[1];
-  const path = match[2];
   try {
-    await supabase.storage.from(bucket).remove([path]);
+    await supabase.storage.from(match[1]).remove([match[2]]);
   } catch {}
 }

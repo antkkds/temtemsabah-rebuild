@@ -214,10 +214,9 @@ export default function AdminSettings({ setMsg }) {
         <div style={{ marginBottom: '1rem' }}>
           <label style={labelS}>CORS Proxy URL (only for NVIDIA — optional)</label>
           <input type="url" value={proxyUrl} onChange={e => setProxyUrl(e.target.value)}
-            placeholder="https://corsproxy.io/?" style={inp} />
+            placeholder="https://your-worker.workers.dev" style={inp} />
           <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '0.25rem' }}>
-            NVIDIA blocks browser requests. Use a CORS proxy or switch to OpenAI (works directly).
-            Free proxy: <a href="https://corsproxy.io/?" target="_blank" rel="noreferrer" style={{ color: '#59c2ff' }}>corsproxy.io/?</a>
+            Your Worker: <code style={{ color: '#59c2ff', fontSize: '0.75rem' }}>https://temtemsabah-cors-proxy.antkkds.workers.dev</code>
           </p>
         </div>
         <button onClick={saveSettings} style={{ ...btn, background: '#00373e', color: 'white' }}>💾 Save Settings</button>
