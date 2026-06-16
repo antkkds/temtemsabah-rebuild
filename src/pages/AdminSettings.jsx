@@ -58,6 +58,7 @@ export default function AdminSettings({ setMsg }) {
   const [loadingBackups, setLoadingBackups] = useState(true);
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(null);
+  const [localMsg, setLocalMsg] = useState('');
 
   useEffect(() => { loadBackups(); }, []);
 
@@ -72,8 +73,9 @@ export default function AdminSettings({ setMsg }) {
     const s = { apiKey, model, updatedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     setSettings(s);
+    setLocalMsg('✅ Settings saved');
     setMsg('✅ Settings saved');
-    setTimeout(() => setMsg(''), 2000);
+    setTimeout(() => { setLocalMsg(''); setMsg(''); }, 2500);
   };
 
   const doBackup = async (name) => {
@@ -202,6 +204,7 @@ export default function AdminSettings({ setMsg }) {
           </select>
         </div>
         <button onClick={saveSettings} style={{ ...btn, background: '#00373e', color: 'white' }}>💾 Save Settings</button>
+        {localMsg && <p style={{ color: '#7fd962', fontSize: '0.85rem', marginTop: '0.75rem' }}>{localMsg}</p>}
       </div>
 
       {/* ── Full Website Backup & Restore ── */}
