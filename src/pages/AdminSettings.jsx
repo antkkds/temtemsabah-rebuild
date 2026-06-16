@@ -245,7 +245,7 @@ export default function AdminSettings({ setMsg }) {
               </span>
               <span style={{ color: '#9ca3af', marginLeft: '0.5rem' }}>{b.name}</span>
               <span style={{ color: '#6b7280', fontSize: '0.75rem', marginLeft: '0.5rem', display: 'block' }}>
-                {b.data ? Object.keys(b.data).filter(t => b.data[t]?.length).map(t => t + ' (' + b.data[t].length + ')').join(' · ') : ''}
+                {b.data ? BACKUP_TABLES.map(t => t + ' (' + (b.data[t]?.length || 0) + ')').join(' · ') : ''}
               </span>
             </div>
             <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
