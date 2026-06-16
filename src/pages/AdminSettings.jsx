@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { supabase, saveArticles as sbSaveArticles, saveRecipes as sbSaveRecipes } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const STORAGE_KEY = 'tts_settings';
-const BACKUP_KEY = 'tts_backup_';
 
 const MODELS = [
   { value: 'nvidia/llama-3.2-11b-vision', label: 'NVIDIA Llama 3.2 11B Vision (fast)' },
@@ -13,37 +12,61 @@ const MODELS = [
   { value: 'gemini/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
 ];
 
+// Tables to include in full backup
+const BACKUP_TABLES = ['newsroom', 'recipes', 'content', 'contacts', 'crm_users'];
+
 const inp = { padding: '0.5rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', fontSize: '0.85rem', outline: 'none', width: '100%', boxSizing: 'border-box' };
 const btn = { padding: '0.5rem 1rem', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500 };
 
 export function getSettings() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { return {}; }
 }
 
-export function getBackups() {
-  const backups = [];
-  for (let i = 0; i < 3; i++) {
-    try {
-      const raw = localStorage.getItem(BACKUP_KEY + i);
-      if (raw) backups.push(JSON.parse(raw));
-    } catch {}
+// Backup helpers
+async function fetchAllTables() {
+  const results = {};
+  for (const table of BACKUP_TABLES) {
+    const { data, error } = await supabase.from(table).select('*');
+    if (!error) results[table] = data || [];
+    else results[table] = [];
   }
-  return backups;
+  return results;
+}
+
+async function restoreTables(data) {
+  for (const table of BACKUP_TABLES) {
+    const rows = data[table];
+    if (!rows || !rows.length) continue;
+    // Delete all existing rows, then insert backup
+    // Use a dummy filter to delete all (Supabase delete requires a filter)
+    const { error: delErr } = await supabase.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (delErr) throw new Error('Delete ' + table + ': ' + delErr.message);
+    // Insert in batches of 50 to avoid payload limits
+    for (let i = 0; i < rows.length; i += 50) {
+      const batch = rows.slice(i, i + 50);
+      const { error: insErr } = await supabase.from(table).insert(batch);
+      if (insErr) throw new Error('Insert ' + table + ': ' + insErr.message);
+    }
+  }
 }
 
 export default function AdminSettings({ setMsg }) {
   const [settings, setSettings] = useState(getSettings());
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
   const [model, setModel] = useState(settings.model || MODELS[0].value);
-  const [backups, setBackups] = useState(getBackups());
+  const [backups, setBackups] = useState([]);
+  const [loadingBackups, setLoadingBackups] = useState(true);
   const [backingUp, setBackingUp] = useState(false);
   const [restoring, setRestoring] = useState(null);
 
-  useEffect(() => {
-    setBackups(getBackups());
-  }, []);
+  useEffect(() => { loadBackups(); }, []);
+
+  const loadBackups = async () => {
+    setLoadingBackups(true);
+    const { data } = await supabase.from('backups').select('*').order('created_at', { ascending: false }).limit(3);
+    setBackups(data || []);
+    setLoadingBackups(false);
+  };
 
   const saveSettings = () => {
     const s = { apiKey, model, updatedAt: new Date().toISOString() };
@@ -53,62 +76,69 @@ export default function AdminSettings({ setMsg }) {
     setTimeout(() => setMsg(''), 2000);
   };
 
-  const doBackup = async () => {
+  const doBackup = async (name) => {
     setBackingUp(true);
     try {
-      const [aRes, rRes] = await Promise.all([
-        supabase.from('newsroom').select('*').order('created_at'),
-        supabase.from('recipes').select('*').order('created_at'),
-      ]);
-      const snapshot = {
-        id: Date.now(),
-        time: new Date().toLocaleString(),
-        articles: aRes.data || [],
-        recipes: rRes.data || [],
-      };
-      // Rotate: shift backups, keep 3 max
-      const existing = getBackups();
-      while (existing.length >= 3) existing.pop();
-      existing.unshift(snapshot);
-      existing.forEach((b, i) => localStorage.setItem(BACKUP_KEY + i, JSON.stringify(b)));
-      setBackups(existing);
-      setMsg('✅ Backup saved (#' + snapshot.id.toString().slice(-4) + ')');
+      // Fetch ALL tables data
+      const allData = await fetchAllTables();
+      const totalRows = Object.values(allData).reduce((sum, arr) => sum + arr.length, 0);
+
+      // Insert into backups table
+      const { error } = await supabase.from('backups').insert({
+        name: name || new Date().toLocaleString(),
+        data: allData,
+      });
+      if (error) throw error;
+
+      // Keep only 3 most recent
+      const { data: all } = await supabase.from('backups').select('id').order('created_at', { ascending: false });
+      if (all && all.length > 3) {
+        const toDelete = all.slice(3).map(b => b.id);
+        await supabase.from('backups').delete().in('id', toDelete);
+      }
+
+      await loadBackups();
+      setMsg('✅ Backup saved (' + totalRows + ' rows across ' + Object.keys(allData).length + ' tables)');
     } catch (err) {
       setMsg('❌ Backup failed: ' + (err.message || err));
     }
     setBackingUp(false);
-    setTimeout(() => setMsg(''), 3000);
+    setTimeout(() => setMsg(''), 4000);
   };
 
   const doRestore = async (backup) => {
-    if (!confirm('Restore backup from ' + backup.time + '?\nThis will REPLACE all current newsroom and recipes!')) return;
+    if (!confirm('⚠️ Restore backup from ' + backup.name + '?\n\nThis will REPLACE all data in:\n' + Object.keys(backup.data || {}).join(', ') + '\n\nCurrent data will be lost! Are you sure?')) return;
     setRestoring(backup.id);
     try {
-      const { error: ae } = await sbSaveArticles(backup.articles || []);
-      if (ae) throw ae;
-      const { error: re } = await sbSaveRecipes(backup.recipes || []);
-      if (re) throw re;
-      setMsg('✅ Restored backup from ' + backup.time);
+      await restoreTables(backup.data);
+      const total = Object.values(backup.data || {}).reduce((s, arr) => s + (arr?.length || 0), 0);
+      setMsg('✅ Restored backup from ' + backup.name + ' (' + total + ' rows)');
     } catch (err) {
       setMsg('❌ Restore failed: ' + (err.message || err));
     }
     setRestoring(null);
-    setTimeout(() => setMsg(''), 3000);
+    setTimeout(() => setMsg(''), 4000);
   };
 
-  const deleteBackup = (idx) => {
+  const deleteBackup = async (id) => {
     if (!confirm('Delete this backup?')) return;
-    localStorage.removeItem(BACKUP_KEY + idx);
-    setBackups(getBackups());
-    setMsg('🗑️ Backup deleted');
+    const { error } = await supabase.from('backups').delete().eq('id', id);
+    if (!error) {
+      await loadBackups();
+      setMsg('🗑️ Backup deleted');
+    } else {
+      setMsg('❌ ' + error.message);
+    }
     setTimeout(() => setMsg(''), 2000);
   };
 
-  const downloadBackup = (backup) => {
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const downloadBackup = async (backup) => {
+    // Re-fetch full data from Supabase to ensure completeness
+    const fullData = backup.data;
+    const blob = new Blob([JSON.stringify(fullData, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `temtemsabah-backup-${backup.id}.json`;
+    a.download = 'temtemsabah-full-backup-' + backup.id.slice(0, 8) + '.json';
     a.click();
   };
 
@@ -121,13 +151,31 @@ export default function AdminSettings({ setMsg }) {
       if (!file) return;
       try {
         const text = await file.text();
-        const backup = JSON.parse(text);
-        if (!backup.articles || !backup.recipes) throw new Error('Invalid backup file');
-        await doRestore(backup);
+        const data = JSON.parse(text);
+        // Validate it has backup structure
+        const hasTables = BACKUP_TABLES.some(t => Array.isArray(data[t]));
+        if (!hasTables) throw new Error('Invalid backup file — no recognized tables found');
+
+        // Import as a new backup in Supabase
+        const { error } = await supabase.from('backups').insert({
+          name: '📂 ' + file.name.replace(/\.json$/, ''),
+          data: data,
+        });
+        if (error) throw error;
+
+        // Trim to 3
+        const { data: all } = await supabase.from('backups').select('id').order('created_at', { ascending: false });
+        if (all && all.length > 3) {
+          const toDelete = all.slice(3).map(b => b.id);
+          await supabase.from('backups').delete().in('id', toDelete);
+        }
+
+        await loadBackups();
+        setMsg('✅ Backup file imported! Go to Restore to apply it.');
       } catch (err) {
-        setMsg('❌ Invalid backup file: ' + (err.message || err));
-        setTimeout(() => setMsg(''), 3000);
+        setMsg('❌ Invalid file: ' + (err.message || err));
       }
+      setTimeout(() => setMsg(''), 4000);
     };
     input.click();
   };
@@ -140,7 +188,7 @@ export default function AdminSettings({ setMsg }) {
       <div style={{ background: '#1a1f2e', padding: '1.5rem', borderRadius: 8, border: '1px solid #2a3040', marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem' }}>🔑 API Settings</h2>
         <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>
-          Used by the Magic Key feature to auto-fill recipes from photos. Saved in your browser only.
+          Used by the 🪄 Magic Key to auto-fill recipes from photos. Saved in your browser only.
         </p>
         <div style={{ marginBottom: '0.75rem' }}>
           <label style={labelS}>API Key</label>
@@ -156,21 +204,30 @@ export default function AdminSettings({ setMsg }) {
         <button onClick={saveSettings} style={{ ...btn, background: '#00373e', color: 'white' }}>💾 Save Settings</button>
       </div>
 
-      {/* ── Backup & Restore ── */}
+      {/* ── Full Website Backup & Restore ── */}
       <div style={{ background: '#1a1f2e', padding: '1.5rem', borderRadius: 8, border: '1px solid #2a3040' }}>
-        <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem' }}>💾 Backup & Restore</h2>
+        <h2 style={{ fontSize: '1.1rem', margin: '0 0 0.25rem' }}>💾 Full Website Backup</h2>
         <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '1rem' }}>
-          Save the current newsroom + recipes. Up to 3 history records kept automatically.
+          Backs up all tables: {BACKUP_TABLES.join(', ')}. Stored in Supabase. Last 3 kept automatically.
         </p>
 
-        <button onClick={doBackup} disabled={backingUp} style={{
-          ...btn, background: backingUp ? '#1a3a3e' : '#00373e', color: 'white', marginBottom: '1rem',
-        }}>
-          {backingUp ? '⏳ Backing up...' : '📥 Backup Now'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          <button onClick={() => doBackup()} disabled={backingUp} style={{
+            ...btn, background: backingUp ? '#1a3a3e' : '#00373e', color: 'white',
+          }}>
+            {backingUp ? '⏳ Backing up...' : '📥 Backup Now'}
+          </button>
+          <button onClick={uploadAndRestore} style={{ ...btn, background: '#1a1f2e', color: '#e0e6ed', border: '1px solid #2a3040' }}>
+            📂 Upload Backup File
+          </button>
+        </div>
 
-        {backups.length === 0 && (
-          <p style={{ color: '#6b7280', fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>No backups yet</p>
+        {loadingBackups && <p style={{ color: '#6b7280', textAlign: 'center', padding: '1rem' }}>Loading backups...</p>}
+
+        {!loadingBackups && backups.length === 0 && (
+          <p style={{ color: '#6b7280', fontSize: '0.85rem', textAlign: 'center', padding: '1rem' }}>
+            No backups yet. Click "Backup Now" to create your first snapshot.
+          </p>
         )}
 
         {backups.map((b, i) => (
@@ -180,33 +237,32 @@ export default function AdminSettings({ setMsg }) {
             marginBottom: '0.5rem', border: '1px solid #2a3040',
           }}>
             <div style={{ fontSize: '0.85rem' }}>
-              <span style={{ fontWeight: 500 }}>#{i + 1}</span>
-              <span style={{ color: '#9ca3af', marginLeft: '0.5rem' }}>{b.time}</span>
-              <span style={{ color: '#6b7280', fontSize: '0.75rem', marginLeft: '0.5rem' }}>
-                ({b.articles?.length || 0} articles · {b.recipes?.length || 0} recipes)
+              <span style={{ fontWeight: 500, color: i === 0 ? '#59c2ff' : '#e0e6ed' }}>
+                {i === 0 ? '🆕 ' : ''}#{i + 1}
+              </span>
+              <span style={{ color: '#9ca3af', marginLeft: '0.5rem' }}>{b.name}</span>
+              <span style={{ color: '#6b7280', fontSize: '0.75rem', marginLeft: '0.5rem', display: 'block' }}>
+                {b.data ? Object.keys(b.data).filter(t => b.data[t]?.length).map(t => t + ' (' + b.data[t].length + ')').join(' · ') : ''}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: '0.35rem' }}>
+            <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
               <button onClick={() => doRestore(b)} disabled={restoring === b.id}
                 style={{ ...btn, background: '#1a3a3e', color: '#59c2ff', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}>
                 {restoring === b.id ? '⏳' : '↩ Restore'}
               </button>
               <button onClick={() => downloadBackup(b)}
                 style={{ ...btn, background: '#1a1f2e', color: '#e0e6ed', fontSize: '0.75rem', padding: '0.3rem 0.6rem', border: '1px solid #2a3040' }}>⬇</button>
-              <button onClick={() => deleteBackup(i)}
+              <button onClick={() => deleteBackup(b.id)}
                 style={{ ...btn, background: 'transparent', color: '#f26d78', fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}>✕</button>
             </div>
           </div>
         ))}
 
-        <div style={{ marginTop: '1rem', borderTop: '1px solid #2a3040', paddingTop: '1rem' }}>
-          <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '0.5rem' }}>
-            Or restore from a downloaded backup file (.json):
+        {backups.length > 0 && (
+          <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '0.75rem', textAlign: 'center' }}>
+            Backups stored in Supabase. Oldest auto-removed when 4th is created.
           </p>
-          <button onClick={uploadAndRestore} style={{ ...btn, background: '#1a1f2e', color: '#e0e6ed', border: '1px solid #2a3040' }}>
-            📂 Upload Backup File
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
