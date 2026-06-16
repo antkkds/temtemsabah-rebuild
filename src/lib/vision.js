@@ -12,16 +12,24 @@ export async function callMagicVision(imageUrl) {
 
   async function doFetch(url, opts) {
     // If proxy is configured, route through it
-    const fetchUrl = proxyUrl ? proxyUrl + '?url=' + encodeURIComponent(url) : url;
-    try {
-      const resp = await fetch(fetchUrl, opts);
-      return resp;
-    } catch (e) {
-      // If direct call fails (CORS) and no proxy set, return error
-      if (!proxyUrl) throw e;
-      // If proxy also fails, throw
-      throw e;
+    if (proxyUrl) {
+      const proxyResp = await fetch(proxyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: url,
+          headers: opts.headers,
+          body: opts.body,
+        }),
+      });
+      if (!proxyResp.ok) {
+        const errText = await proxyResp.text();
+        throw new Error('Proxy error: ' + (errText || proxyResp.status));
+      }
+      return proxyResp;
     }
+    // Direct call (only works for APIs that support CORS like OpenAI)
+    return await fetch(url, opts);
   }
 
   try {
