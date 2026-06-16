@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, LogOut, Search, ExternalLink } from 'lucide-react';
-
-const API = '';
+import { supabase, getArticles, getRecipes, saveArticles as sbSaveArticles, saveRecipes as sbSaveRecipes, uploadImage } from '../lib/supabase';
 
 const EMPTY_ARTICLE = {
   id: '', title: '', slug: '', excerpt: '', full_content: '',
@@ -58,39 +57,36 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  const fetchData = () => {
-    const fetches = [
-      fetch('/api/newsroom').then(r => r.json()),
-      fetch('/api/recipes').then(r => r.json()),
-    ];
+  const fetchData = async () => {
+    setLoading(true);
+    const [{ data: articles }, { data: recipes }] = await Promise.all([
+      getArticles(),
+      getRecipes(),
+    ]);
+    setArticles(articles || []);
+    setRecipes(recipes || []);
     if (can('users')) {
-      fetches.push(fetch('/api/crm/users', { headers }).then(r => r.json()));
+      const { data: users } = await supabase.from('crm_users').select('*').order('created_at', { ascending: true });
+      setCrmUsers(users || []);
     }
-    Promise.all(fetches).then(([n, r, u]) => {
-      setArticles(n.articles || []);
-      setRecipes(r.recipes || []);
-      if (u) setCrmUsers(u.users || []);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    setLoading(false);
   };
-  useEffect(fetchData, []);
+  useEffect(() => { fetchData(); }, []);
 
   const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token };
 
-  const saveArticles = async (updated) => {
-    const resp = await fetch(API + '/api/newsroom', { method: 'PUT', headers, body: JSON.stringify({ articles: updated }) });
-    const d = await resp.json();
-    setMsg(d.ok ? '✅ Saved!' : '❌ Error');
+  const doSaveArticles = async (updated) => {
+    const { error } = await sbSaveArticles(updated);
+    setMsg(error ? '❌ ' + error.message : '✅ Saved!');
     setTimeout(() => setMsg(''), 2000);
-    if (d.ok) setArticles(updated);
+    if (!error) setArticles(updated);
   };
 
-  const saveRecipes = async (updated) => {
-    const resp = await fetch(API + '/api/recipes', { method: 'PUT', headers, body: JSON.stringify({ recipes: updated }) });
-    const d = await resp.json();
-    setMsg(d.ok ? '✅ Recipes saved!' : '❌ Error');
+  const doSaveRecipes = async (updated) => {
+    const { error } = await sbSaveRecipes(updated);
+    setMsg(error ? '❌ ' + error.message : '✅ Recipes saved!');
     setTimeout(() => setMsg(''), 2000);
-    if (d.ok) setRecipes(updated);
+    if (!error) setRecipes(updated);
   };
 
   if (loading) return <div style={{ padding: '2rem', color: '#fff', background: '#0f1219', minHeight: '100vh' }}>Loading...</div>;
@@ -134,7 +130,7 @@ export default function AdminDashboard() {
               } else {
                 updated = [...articles, { ...a, id: 'n-' + Date.now(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }];
               }
-              await saveArticles(updated);
+              await doSaveArticles(updated);
               setView('list');
               setEditing(null);
             }}
@@ -153,7 +149,7 @@ export default function AdminDashboard() {
             onEdit={(a) => { setEditing({ ...a }); setView('edit'); }}
             onDelete={async (id) => {
               if (!confirm('Delete this article?')) return;
-              await saveArticles(articles.filter(x => x.id !== id));
+              await doSaveArticles(articles.filter(x => x.id !== id));
             }}
           />
         )
@@ -167,7 +163,7 @@ export default function AdminDashboard() {
             } else {
               updated = [...recipes, { ...r, id: 'r-' + Date.now() }];
             }
-            await saveRecipes(updated);
+            await doSaveRecipes(updated);
             setView('list');
             setEditingRecipe(null);
           }}
@@ -196,7 +192,7 @@ export default function AdminDashboard() {
                 style={{ background: 'none', border: 'none', color: '#59c2ff', cursor: 'pointer' }}><Pencil size={14} /></button>
               <button onClick={async () => {
                 if (!confirm('Delete?')) return;
-                await saveRecipes(recipes.filter(x => x.id !== r.id));
+                await doSaveRecipes(recipes.filter(x => x.id !== r.id));
               }} style={{ background: 'none', border: 'none', color: '#f26d78', cursor: 'pointer' }}><Trash2 size={14} /></button>
             </div>
           ))}
@@ -237,6 +233,7 @@ export default function AdminDashboard() {
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
                 <button onClick={async () => {
+                  try {
                   if (editingUser.id) {
                     const body = { name: editingUser.name, email: editingUser.email, role: editingUser.role, permissions: editingUser.permissions };
                     if (editingUser._password) body.password = editingUser._password;
@@ -250,6 +247,7 @@ export default function AdminDashboard() {
                     if (d.ok) { setMsg('✅ User created'); fetchData(); setEditingUser(null); }
                     else setMsg('❌ ' + (d.error || 'Failed'));
                   }
+                  } catch { setMsg('❌ User mgmt unavailable from this URL'); }
                   setTimeout(() => setMsg(''), 2000);
                 }} style={{ padding: '0.5rem 1.5rem', borderRadius: 6, border: 'none', background: '#00373e', color: 'white', cursor: 'pointer', fontSize: '0.85rem' }}>💾 Save</button>
                 <button onClick={() => setEditingUser(null)} style={{ padding: '0.5rem 1rem', borderRadius: 6, border: '1px solid #2a3040', background: 'transparent', color: '#9ca3af', cursor: 'pointer' }}>Cancel</button>
@@ -267,9 +265,12 @@ export default function AdminDashboard() {
                     <button onClick={() => setEditingUser(u)} style={{ background: 'none', border: 'none', color: '#59c2ff', cursor: 'pointer' }}><Pencil size={14} /></button>
                     {u.id !== crmUsers.find(x => x.role === 'admin')?.id && <button onClick={async () => {
                       if (!confirm('Delete ' + u.email + '?')) return;
+                      try {
                       const r = await fetch('/api/crm/users/' + u.id, { method: 'DELETE', headers });
                       const d = await r.json();
                       if (d.ok) { setMsg('✅ User deleted'); fetchData(); }
+                      else setMsg('❌ ' + (d.error || 'Failed'));
+                      } catch { setMsg('❌ User mgmt unavailable'); }
                       setTimeout(() => setMsg(''), 2000);
                     }} style={{ background: 'none', border: 'none', color: '#f26d78', cursor: 'pointer' }}><Trash2 size={14} /></button>}
                   </div>
@@ -677,12 +678,8 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
           <input value={e.image} onChange={v => update('image', v.target.value)} placeholder="https://..." style={{ ...inp, flex: 1, minWidth: '200px' }} />
           <input type="file" accept="image/*" style={{ display: 'none' }} id="recipe-img-upload" onChange={async (ev) => {
             const file = ev.target.files?.[0]; if (!file) return;
-            const fd = new FormData();
-            fd.append('file', file);
-            fd.append('folder', 'recipe');
-            const resp = await fetch('/api/upload-file', { method: 'POST', body: fd });
-            const d = await resp.json();
-            if (d.ok) update('image', d.url);
+            const { url, error } = await uploadImage(file, 'recipe');
+            if (url) update('image', url);
             ev.target.value = '';
           }} />
           <button onClick={() => document.getElementById('recipe-img-upload').click()} style={{ padding: '0.4rem 0.7rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>📁 Browse</button>
@@ -729,13 +726,9 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
             const status = document.getElementById('magic-status');
             status.textContent = '📤 Uploading...';
             try { localStorage.setItem('last_recipe_photo', file.name); } catch {}
-            const fd = new FormData();
-            fd.append('file', file);
-            fd.append('folder', 'recipe');
-            const resp = await fetch('/api/upload-file', { method: 'POST', body: fd });
-            const data = await resp.json();
-            if (!data.ok) { status.textContent = '❌ Upload failed: ' + (data.error || ''); ev.target.value = ''; return; }
-            document.getElementById('magic-url-input').value = data.url;
+            const { url, error } = await uploadImage(file, 'recipe');
+            if (error || !url) { status.textContent = '❌ Upload failed: ' + (error?.message || error); ev.target.value = ''; return; }
+            document.getElementById('magic-url-input').value = url;
             status.textContent = '🪄 Processing with AI...';
               const btn = document.getElementById('magic-btn');
               btn.disabled = true; btn.textContent = '⏳';

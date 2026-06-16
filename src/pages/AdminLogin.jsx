@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { supabase, login } from '../lib/supabase';
 
 export default function AdminLogin({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -11,23 +12,40 @@ export default function AdminLogin({ onLogin }) {
     setError('');
     setLoading(true);
     try {
-      const resp = await fetch('/api/crm/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
-      const data = await resp.json();
-      if (data.ok) {
-        localStorage.setItem('crm_token', data.token);
-        localStorage.setItem('crm_user', JSON.stringify(data.user));
-        onLogin(data.token, data.user);
+      const { data, error: authError } = await login(email.trim(), password);
+      if (authError) {
+        setError(authError.message || 'Invalid email or password');
+      } else if (data?.user) {
+        // Fetch user role info from crm_users
+        const { data: users } = await supabase
+          .from('crm_users')
+          .select('*')
+          .eq('email', email.trim())
+          .maybeSingle();
+
+        const userInfo = {
+          id: data.user.id,
+          email: data.user.email,
+          name: users?.name || 'Admin',
+          role: users?.role || 'admin',
+          permissions: users?.permissions || {},
+        };
+        localStorage.setItem('crm_token', data.session?.access_token || '');
+        localStorage.setItem('crm_user', JSON.stringify(userInfo));
+        onLogin(data.session?.access_token || '', userInfo);
       } else {
-        setError(data.error || 'Invalid email or password');
+        setError('Login failed — no user returned');
       }
-    } catch {
-      setError('Cannot connect to server');
+    } catch (err) {
+      setError('Cannot connect: ' + (err.message || err));
     }
     setLoading(false);
+  };
+
+  const inputStyle = {
+    display: 'block', width: '100%', marginBottom: '0.75rem', padding: '0.7rem 0.85rem',
+    borderRadius: 6, border: '1px solid #2a3040', background: '#0f1219', color: '#e0e6ed',
+    fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box',
   };
 
   return (
@@ -37,7 +55,7 @@ export default function AdminLogin({ onLogin }) {
     }}>
       <form onSubmit={handleLogin} style={{
         background: '#1a1f2e', padding: '2.5rem', borderRadius: 12,
-        border: '1px solid #2a3040', width: '100%', maxWidth: 380,
+        border: '1px solid #2a3040', width: '100%', maxWidth: 380, boxSizing: 'border-box',
       }}>
         <h1 style={{ color: '#e0e6ed', fontSize: '1.25rem', marginBottom: '0.25rem', textAlign: 'center' }}>
           🔐 Admin Login
@@ -67,9 +85,3 @@ export default function AdminLogin({ onLogin }) {
     </div>
   );
 }
-
-const inputStyle = {
-  width: '100%', padding: '0.75rem 1rem', borderRadius: 6,
-  border: '1px solid #2a3040', background: '#0f1219', color: '#e0e6ed',
-  fontSize: '1rem', marginBottom: '1rem', outline: 'none', boxSizing: 'border-box',
-};
