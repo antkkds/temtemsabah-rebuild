@@ -105,7 +105,12 @@ function parseRecipeResponse(text) {
     prep,
     cook,
     servings: parseInt(servings) || 4,
-    ingredients: [{ group: '', items: ingLines.map(i => [i, '']) }],
+    ingredients: [{ group: '', items: ingLines.map(i => {
+      // Try to split quantity from name
+      const m = i.match(/^([\d\/]+\s*[a-zA-Z]*)\s+(.+)/);
+      if (m) return [m[2].trim(), m[1].trim()]; // [name, amount]
+      return [i, '']; // no quantity found
+    }) }],
     instructions: instLines,
     equipment: [], tips: '', video: '',
   };
