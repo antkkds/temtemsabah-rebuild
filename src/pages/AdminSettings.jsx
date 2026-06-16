@@ -4,12 +4,10 @@ import { supabase } from '../lib/supabase';
 const STORAGE_KEY = 'tts_settings';
 
 const MODELS = [
-  { value: 'nvidia/llama-3.2-11b-vision', label: 'NVIDIA Llama 3.2 11B Vision (fast)' },
-  { value: 'nvidia/llama-3.2-90b-vision', label: 'NVIDIA Llama 3.2 90B Vision (accurate)' },
-  { value: 'openai/gpt-4o', label: 'OpenAI GPT-4o' },
-  { value: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o-mini' },
-  { value: 'gemini/gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { value: 'gemini/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+  { value: 'nvidia/llama-3.2-11b-vision', label: 'NVIDIA Llama 3.2 11B Vision (CORS ❌ — needs proxy)' },
+  { value: 'nvidia/llama-3.2-90b-vision', label: 'NVIDIA Llama 3.2 90B Vision (CORS ❌ — needs proxy)' },
+  { value: 'openai/gpt-4o', label: 'OpenAI GPT-4o (CORS ✅ — works directly)' },
+  { value: 'openai/gpt-4o-mini', label: 'OpenAI GPT-4o-mini (CORS ✅ — works directly)' },
 ];
 
 // Tables to include in full backup
@@ -54,6 +52,7 @@ export default function AdminSettings({ setMsg }) {
   const [settings, setSettings] = useState(getSettings());
   const [apiKey, setApiKey] = useState(settings.apiKey || '');
   const [model, setModel] = useState(settings.model || MODELS[0].value);
+  const [proxyUrl, setProxyUrl] = useState(settings.proxyUrl || '');
   const [backups, setBackups] = useState([]);
   const [loadingBackups, setLoadingBackups] = useState(true);
   const [backingUp, setBackingUp] = useState(false);
@@ -70,7 +69,7 @@ export default function AdminSettings({ setMsg }) {
   };
 
   const saveSettings = () => {
-    const s = { apiKey, model, updatedAt: new Date().toISOString() };
+    const s = { apiKey, model, proxyUrl, updatedAt: new Date().toISOString() };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
     setSettings(s);
     setLocalMsg('✅ Settings saved');
@@ -211,6 +210,15 @@ export default function AdminSettings({ setMsg }) {
           <select value={model} onChange={e => setModel(e.target.value)} style={inp}>
             {MODELS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
+        </div>
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={labelS}>CORS Proxy URL (only for NVIDIA — optional)</label>
+          <input type="url" value={proxyUrl} onChange={e => setProxyUrl(e.target.value)}
+            placeholder="https://corsproxy.io/?" style={inp} />
+          <p style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: '0.25rem' }}>
+            NVIDIA blocks browser requests. Use a CORS proxy or switch to OpenAI (works directly).
+            Free proxy: <a href="https://corsproxy.io/?" target="_blank" rel="noreferrer" style={{ color: '#59c2ff' }}>corsproxy.io/?</a>
+          </p>
         </div>
         <button onClick={saveSettings} style={{ ...btn, background: '#00373e', color: 'white' }}>💾 Save Settings</button>
         {localMsg && <p style={{ color: '#7fd962', fontSize: '0.85rem', marginTop: '0.75rem' }}>{localMsg}</p>}

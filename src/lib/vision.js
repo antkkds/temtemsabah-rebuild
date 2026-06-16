@@ -1,13 +1,28 @@
 // Client-side vision API calls for Magic Key feature
-// No backend needed — calls AI APIs directly from browser
+import { supabase } from './supabase';
 
 export async function callMagicVision(imageUrl) {
   const settings = JSON.parse(localStorage.getItem('tts_settings') || '{}');
   const key = settings.apiKey;
   const model = settings.model || 'nvidia/llama-3.2-11b-vision';
+  const proxyUrl = settings.proxyUrl || '';
   if (!key) return { error: 'No API key set. Go to Settings to add one.' };
 
   const prompt = 'Extract recipe information from this image. Return ONLY valid JSON with these fields: title, subtitle, description, prep, cook, servings, ingredients (array of objects with group and items array), instructions (array of strings), equipment (array), tips, video. If ingredients have groups, separate them. If no info for a field, use empty string or empty array. Return ONLY the JSON object, no markdown, no code blocks, no explanation.';
+
+  async function doFetch(url, opts) {
+    // If proxy is configured, route through it
+    const fetchUrl = proxyUrl ? proxyUrl + '?url=' + encodeURIComponent(url) : url;
+    try {
+      const resp = await fetch(fetchUrl, opts);
+      return resp;
+    } catch (e) {
+      // If direct call fails (CORS) and no proxy set, return error
+      if (!proxyUrl) throw e;
+      // If proxy also fails, throw
+      throw e;
+    }
+  }
 
   try {
     if (model.startsWith('nvidia/')) {
@@ -15,7 +30,7 @@ export async function callMagicVision(imageUrl) {
         ? 'meta/llama-3.2-90b-vision-instruct'
         : 'meta/llama-3.2-11b-vision-instruct';
       const endpoint = 'https://ai.api.nvidia.com/v1/gr/' + nvModel + '/chat/completions';
-      const resp = await fetch(endpoint, {
+      const resp = await doFetch(endpoint, {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -29,8 +44,10 @@ export async function callMagicVision(imageUrl) {
         text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
         try { return { recipe: JSON.parse(text) }; } catch { return { ocr: text }; }
       }
-      return { error: (data.error && data.error.message) || data.error || 'Unknown error' };
+      return { error: (data.error && data.error.message) || 'API error — check your key and proxy settings' };
+
     } else if (model.startsWith('openai/')) {
+      // OpenAI supports CORS, no proxy needed
       const openaiModel = model === 'openai/gpt-4o' ? 'gpt-4o' : 'gpt-4o-mini';
       const resp = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -49,8 +66,25 @@ export async function callMagicVision(imageUrl) {
       }
       return { error: (data.error && data.error.message) || 'Unknown error' };
     }
+
     return { error: 'Unsupported model: ' + model };
   } catch (err) {
-    return { error: err.message || 'Network error' };
+    const msg = err.message || '';
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('CORS')) {
+      return { error: 'Browser blocked the request (CORS). Add a Proxy URL in ⚙ Settings or use an OpenAI key (supports CORS).' };
+    }
+    return { error: msg || 'Network error' };
   }
+}
+
+// Delete an uploaded image from Supabase Storage
+export async function deleteUploadedImage(url) {
+  if (!url) return;
+  const match = url.match(/\/object\/public\/([^/]+)\/(.+)/);
+  if (!match) return;
+  const bucket = match[1];
+  const path = match[2];
+  try {
+    await supabase.storage.from(bucket).remove([path]);
+  } catch {}
 }

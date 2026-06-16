@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, LogOut, Search, ExternalLink } from 'lucide-react';
 import { supabase, getArticles, getRecipes, saveArticles as sbSaveArticles, saveRecipes as sbSaveRecipes, uploadImage } from '../lib/supabase';
-import { callMagicVision } from '../lib/vision';
+import { callMagicVision, deleteUploadedImage } from '../lib/vision';
 import AdminSettings from './AdminSettings';
 
 const EMPTY_ARTICLE = {
@@ -741,8 +741,8 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
               btn.disabled = true; btn.textContent = '⏳';
               try {
                 const result = await callMagicVision(url);
-                if (result.recipe && result.recipe.title) { setE(result.recipe); status.textContent = '✅ Auto-filled! Review and save.'; }
-                else if (result.ocr) { status.textContent = '⚠️ OCR found text but could not parse.'; }
+                if (result.recipe && result.recipe.title) { setE(result.recipe); status.textContent = '✅ Auto-filled! Review and save.'; deleteUploadedImage(url); }
+                else if (result.ocr) { status.textContent = '⚠️ OCR found text but could not parse.'; deleteUploadedImage(url); }
                 else { status.textContent = '❌ ' + (result.error || 'Failed'); }
               } catch (err) { status.textContent = '❌ Error: ' + err.message; }
                 btn.disabled = false; btn.textContent = '🪄 Magic';
