@@ -14,10 +14,12 @@
     "bcryptjs": "^3.0.3",
     "busboy": "^1.6.0",
     "esbuild": "^0.19.12",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.17.0",
     "pg": "^8.21.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-leaflet": "^5.0.0",
     "react-router-dom": "^6.26.0"
   },
   "devDependencies": {

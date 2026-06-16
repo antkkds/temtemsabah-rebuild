@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, LogOut, Search, ExternalLink } from 'lucide-react
 import { supabase, getArticles, getRecipes, saveArticles as sbSaveArticles, saveRecipes as sbSaveRecipes, uploadImage } from '../lib/supabase';
 import { callMagicVision, deleteUploadedImage } from '../lib/vision';
 import AdminSettings from './AdminSettings';
+import AdminGlobalReach from './AdminGlobalReach';
 
 const EMPTY_ARTICLE = {
   id: '', title: '', slug: '', excerpt: '', full_content: '',
@@ -119,6 +120,11 @@ export default function AdminDashboard() {
           background: tab === 'settings' ? '#00373e' : 'transparent',
           color: tab === 'settings' ? 'white' : '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
         }}>⚙ Settings</button>
+        <button onClick={() => setTab('globalreach')} style={{
+          padding: '0.4rem 1rem', borderRadius: 6, border: 'none',
+          background: tab === 'globalreach' ? '#00373e' : 'transparent',
+          color: tab === 'globalreach' ? 'white' : '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
+        }}>🌍 Global</button>
         <div style={{ flex: 1 }} />
         {user && <span style={{ fontSize: '0.75rem', color: '#6b7280', marginRight: '0.5rem' }}>{user.email}</span>}
         {msg && <span style={{ fontSize: '0.8rem', color: '#7fd962' }}>{msg}</span>}
@@ -291,6 +297,8 @@ export default function AdminDashboard() {
         </div>
       ) : tab === 'settings' ? (
         <AdminSettings setMsg={setMsg} />
+      ) : tab === 'globalreach' ? (
+        <AdminGlobalReach setMsg={setMsg} />
       ) : null}
     </div>
   );

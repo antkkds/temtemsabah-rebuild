@@ -22,8 +22,10 @@ function parseRecipeResponse(text) {
 
   // Extract fields by looking for "Label:" patterns
   let title = '', subtitle = '', description = '', prep = '', cook = '', servings = '';
-  const ingLines = [], instLines = [];
+  const ingGroups = [];
+  const instLines = [];
   let currentSection = '';
+  let currentGroup = '';
 
   for (const l of lines) {
     // Check for known labels
@@ -36,6 +38,11 @@ function parseRecipeResponse(text) {
     const ingHead = l.match(/^Ingredients?:?\s*/i);
     const instHead = l.match(/^Instructions?:?\s*/i);
     const bahnHead = l.match(/^BAHAN/i);
+    const groupHead = l.match(/^Group:\s*(.+)/i);
+    const subHead = l.match(/^\*\*(.+)\*\*:?$/);
+    const mainHead = l.match(/^==MAIN==/i);
+    const seasHead = l.match(/^==SEASONINGS==/i);
+    const stepsHead = l.match(/^==STEPS==/i);
 
     if (titleMatch) { title = titleMatch[1].trim(); currentSection = ''; continue; }
     if (subMatch) { subtitle = subMatch[1].trim(); currentSection = ''; continue; }
@@ -43,16 +50,38 @@ function parseRecipeResponse(text) {
     if (prepMatch) { prep = prepMatch[1].trim(); currentSection = ''; continue; }
     if (cookMatch) { cook = cookMatch[1].trim(); currentSection = ''; continue; }
     if (serveMatch) { servings = serveMatch[1].trim(); currentSection = ''; continue; }
-    if (ingHead || bahnHead) { currentSection = 'ingredients'; continue; }
+    if (ingHead || bahnHead) { currentSection = 'ingredients'; currentGroup = ''; continue; }
     if (instHead) { currentSection = 'instructions'; continue; }
+    if (mainHead) { currentSection = 'ingredients'; currentGroup = 'Main'; continue; }
+    if (seasHead) { currentSection = 'ingredients'; currentGroup = 'Seasonings'; continue; }
+    if (stepsHead) { currentSection = 'instructions'; continue; }
 
     if (currentSection === 'ingredients') {
-      const item = l.replace(/^[•\-*\d.\s]+/, '').trim();
-      if (item && item.length > 1 && !/^(bahan|langkah|instructions?|cara|alat|equipment|tip|video)/i.test(item)) {
-        ingLines.push(item);
+      // Check for group header: "Group: Main" or "**Main:**"
+      const gMatch = l.match(/^Group:\s*(.+)/i) || l.match(/^\*\*(.+)\*\*:?$/);
+      if (gMatch && gMatch[1].length < 30) {
+        currentGroup = gMatch[1].trim();
+        continue;
+      }
+      const item = l.replace(/^[•\-*\s]+/, '').trim();
+      if (item && item.length > 1 && !/^(bahan|langkah|instructions?|cara|alat|equipment|tip|video|group)/i.test(item)) {
+        // Split quantity from name
+        const qm = item.match(/^([\d\/]+\s*[a-zA-Z]*)\s+(.+)/);
+        const name = qm ? qm[2].trim() : item;
+        const amount = qm ? qm[1].trim() : '';
+        ingGroups.push({ group: currentGroup, items: [[name, amount]] });
+      }
+      // Merge items into same group instead of creating new groups
+      if (ingGroups.length >= 2) {
+        const last = ingGroups[ingGroups.length - 1];
+        const prev = ingGroups[ingGroups.length - 2];
+        if (last.group === prev.group) {
+          prev.items.push(...last.items);
+          ingGroups.pop();
+        }
       }
     } else if (currentSection === 'instructions') {
-      const item = l.replace(/^[•\-*\d.\s]+/, '').trim();
+      const item = l.replace(/^[•\-*\s]+/, '').trim();
       if (item && item.length > 1 && !/^(bahan|langkah|instructions?|cara|alat|equipment|tip|video)/i.test(item)) {
         instLines.push(item);
       }
@@ -70,14 +99,19 @@ function parseRecipeResponse(text) {
   }
 
   // Fallback ingredients: look for lines after "BAHAN" or similar
-  if (ingLines.length === 0) {
+  if (ingGroups.length === 0) {
     let inIng = false;
     for (const l of lines) {
       if (/^BAHAN|ingredients/i.test(l)) { inIng = true; continue; }
       if (inIng && /^Langkah|instructions?|cara\b/i.test(l)) break;
       if (inIng) {
         const item = l.replace(/^[•\-*\s]+/, '').trim();
-        if (item && !/^(bahan|langkah)/i.test(item)) ingLines.push(item);
+        if (item && !/^(bahan|langkah)/i.test(item)) {
+          const qm = item.match(/^([\d\/]+\s*[a-zA-Z]*)\s+(.+)/);
+          const name = qm ? qm[2].trim() : item;
+          const amount = qm ? qm[1].trim() : '';
+          ingGroups.push({ group: '', items: [[name, amount]] });
+        }
       }
     }
   }
@@ -105,12 +139,7 @@ function parseRecipeResponse(text) {
     prep,
     cook,
     servings: parseInt(servings) || 4,
-    ingredients: [{ group: '', items: ingLines.map(i => {
-      // Try to split quantity from name
-      const m = i.match(/^([\d\/]+\s*[a-zA-Z]*)\s+(.+)/);
-      if (m) return [m[2].trim(), m[1].trim()]; // [name, amount]
-      return [i, '']; // no quantity found
-    }) }],
+    ingredients: ingGroups.length > 0 ? ingGroups : [{ group: '', items: [] }],
     instructions: instLines,
     equipment: [], tips: '', video: '',
   };
@@ -123,7 +152,7 @@ export async function callMagicVision(imageUrl) {
   const proxyUrl = settings.proxyUrl || '';
   if (!key) return { error: 'No API key set. Go to Settings to add one.' };
 
-  const prompt = 'Extract the recipe from this image. Return the recipe data in this exact format:\n\nTitle: [recipe name]\nSubtitle: \nDescription: \nPrep: \nCook: \nServings: \n\nIngredients:\n- [item with quantity]\n- [item with quantity]\n\nInstructions:\n- [step 1]\n- [step 2]';
+  const prompt = 'I need this recipe split into 3 sections. Section 1 = MAIN INGREDIENTS (tempe, flour, eggs). Section 2 = SEASONINGS (spices, salt, sugar, water). Section 3 = STEPS (how to cook). Format:\n\nTitle:\n\n==MAIN==\n- [amount] [name]\n\n==SEASONINGS==\n- [amount] [name]\n\n==STEPS==\n- [step]';
 
   async function doFetch(url, opts) {
     if (proxyUrl) {

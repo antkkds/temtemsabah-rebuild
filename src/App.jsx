@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import ContactPage from './pages/ContactPage';
 import NewsroomPage from './pages/NewsroomPage';
 import MoreRecipes from './pages/MoreRecipes';
+import GlobalReachPage from './pages/GlobalReachPage';
 import AdminPage from './pages/AdminPage';
 import InternalArticlePage from './pages/InternalArticlePage';
 import InfoPage from './pages/InfoPage';
@@ -37,6 +38,7 @@ function AppContent() {
           <Route path="/newsroom" element={<NewsroomPage />} />
           <Route path="/newsroom/:slug" element={<InternalArticlePage />} />
           <Route path="/more-recipes" element={<MoreRecipes />} />
+          <Route path="/global-reach" element={<GlobalReachPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/info" element={<InfoPage />} />
         </Routes>
