@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, LogOut, Search, ExternalLink } from 'lucide-react';
 import { supabase, getArticles, getRecipes, saveArticles as sbSaveArticles, saveRecipes as sbSaveRecipes, uploadImage } from '../lib/supabase';
+import AdminSettings from './AdminSettings';
 
 const EMPTY_ARTICLE = {
   id: '', title: '', slug: '', excerpt: '', full_content: '',
@@ -89,6 +90,78 @@ export default function AdminDashboard() {
     if (!error) setRecipes(updated);
   };
 
+  // 🪄 Call vision API directly from browser (no backend needed)
+  const callMagicVision = async (imageUrl) => {
+    const settings = JSON.parse(localStorage.getItem('tts_settings') || '{}');
+    const key = settings.apiKey;
+    const model = settings.model || 'nvidia/llama-3.2-11b-vision';
+    if (!key) return { error: 'No API key set. Go to ⚙ Settings to add one.' };
+
+    const prompt = 'Extract recipe information from this image. Return ONLY valid JSON with these fields: title, subtitle, description, prep, cook, servings, ingredients (array of objects with group and items array), instructions (array of strings), equipment (array), tips, video. If ingredients have groups, separate them. If no info for a field, use empty string or empty array. Return ONLY the JSON object, no markdown, no code blocks, no explanation.';
+
+    try {
+      if (model.startsWith('nvidia/')) {
+        const nvModel = model === 'nvidia/llama-3.2-90b-vision'
+          ? 'meta/llama-3.2-90b-vision-instruct'
+          : 'meta/llama-3.2-11b-vision-instruct';
+        const resp = await fetch(`https://ai.api.nvidia.com/v1/gr/${nvModel}/chat/completions`, {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: imageUrl } }] }],
+            max_tokens: 2048, temperature: 0.1,
+          }),
+        });
+        const data = await resp.json();
+        if (data.choices?.[0]?.message?.content) {
+          let text = data.choices[0].message.content;
+          text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+          try { return { recipe: JSON.parse(text) }; } catch { return { ocr: text }; }
+        }
+        return { error: data.error?.message || data.error || 'Unknown error' };
+      } else if (model.startsWith('openai/')) {
+        const openaiModel = model === 'openai/gpt-4o' ? 'gpt-4o' : 'gpt-4o-mini';
+        const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: openaiModel,
+            messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: imageUrl } }] }],
+            max_tokens: 2048, temperature: 0.1,
+          }),
+        });
+        const data = await resp.json();
+        if (data.choices?.[0]?.message?.content) {
+          let text = data.choices[0].message.content;
+          text = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+          try { return { recipe: JSON.parse(text) }; } catch { return { ocr: text }; }
+        }
+        return { error: data.error?.message || 'Unknown error' };
+      } else if (model.startsWith('gemini/')) {
+        const geminiModel = model === 'gemini/gemini-2.5-pro' ? 'gemini-2.5-pro-exp-03-25' : 'gemini-2.0-flash-exp';
+        const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel}:generateContent?key=${key}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: imageUrl.startsWith('data:') ? imageUrl.split(',')[1] : '' } }] }],
+          }),
+        });
+        // For Gemini, image URL approach is different - use inline data or URL
+        // Simplified: just call with text + imageUrl
+        const data = await resp.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+          try { return { recipe: JSON.parse(clean) }; } catch { return { ocr: clean }; }
+        }
+        return { error: data.error?.message || 'Unknown error' };
+      }
+      return { error: 'Unsupported model: ' + model };
+    } catch (err) {
+      return { error: err.message || 'Network error' };
+    }
+  };
+
   if (loading) return <div style={{ padding: '2rem', color: '#fff', background: '#0f1219', minHeight: '100vh' }}>Loading...</div>;
 
   return (
@@ -110,6 +183,11 @@ export default function AdminDashboard() {
           background: tab === 'users' ? '#00373e' : 'transparent',
           color: tab === 'users' ? 'white' : '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
         }}>👥 Users</button>}
+        <button onClick={() => setTab('settings')} style={{
+          padding: '0.4rem 1rem', borderRadius: 6, border: 'none',
+          background: tab === 'settings' ? '#00373e' : 'transparent',
+          color: tab === 'settings' ? 'white' : '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
+        }}>⚙ Settings</button>
         <div style={{ flex: 1 }} />
         {user && <span style={{ fontSize: '0.75rem', color: '#6b7280', marginRight: '0.5rem' }}>{user.email}</span>}
         {msg && <span style={{ fontSize: '0.8rem', color: '#7fd962' }}>{msg}</span>}
@@ -280,6 +358,8 @@ export default function AdminDashboard() {
             </div>
           )}
         </div>
+      ) : tab === 'settings' ? (
+        <AdminSettings setMsg={setMsg} />
       ) : null}
     </div>
   );
@@ -703,18 +783,14 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
             btn.disabled = true; btn.textContent = '⏳';
             document.getElementById('magic-status').textContent = 'Sending to AI...';
             try {
-              const resp = await fetch('/api/recipe-magic', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageUrl: url }),
-              });
-              const data = await resp.json();
-              if (data.recipe && data.recipe.title) {
-                setE(data.recipe);
+              const result = await callMagicVision(url);
+              if (result.recipe && result.recipe.title) {
+                setE(result.recipe);
                 document.getElementById('magic-status').textContent = '✅ Auto-filled! Review and save.';
-              } else if (data.ocr) {
+              } else if (result.ocr) {
                 document.getElementById('magic-status').textContent = '⚠️ OCR found text but could not parse.';
               } else {
-                document.getElementById('magic-status').textContent = '❌ ' + (data.error || 'Failed');
+                document.getElementById('magic-status').textContent = '❌ ' + (result.error || 'Failed');
               }
             } catch (err) {
               document.getElementById('magic-status').textContent = '❌ Error: ' + err.message;
@@ -733,14 +809,10 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
               const btn = document.getElementById('magic-btn');
               btn.disabled = true; btn.textContent = '⏳';
               try {
-                const r2 = await fetch('/api/recipe-magic', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ imageUrl: data.url }),
-                });
-                const d2 = await r2.json();
-                if (d2.recipe && d2.recipe.title) { setE(d2.recipe); status.textContent = '✅ Auto-filled! Review and save.'; }
-                else if (d2.ocr) { status.textContent = '⚠️ OCR found text but could not parse.'; }
-                else { status.textContent = '❌ ' + (d2.error || 'Failed'); }
+                const result = await callMagicVision(url);
+                if (result.recipe && result.recipe.title) { setE(result.recipe); status.textContent = '✅ Auto-filled! Review and save.'; }
+                else if (result.ocr) { status.textContent = '⚠️ OCR found text but could not parse.'; }
+                else { status.textContent = '❌ ' + (result.error || 'Failed'); }
               } catch (err) { status.textContent = '❌ Error: ' + err.message; }
                 btn.disabled = false; btn.textContent = '🪄 Magic';
               ev.target.value = '';
