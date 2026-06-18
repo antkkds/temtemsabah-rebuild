@@ -20,10 +20,8 @@ export const getArticles = async (status) => {
 };
 
 export const saveArticles = async (articles) => {
-  const { error: delErr } = await supabase.from('newsroom').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (delErr) return { error: delErr };
   if (!articles.length) return { data: [] };
-  const { data, error } = await supabase.from('newsroom').insert(articles).select();
+  const { data, error } = await supabase.from('newsroom').upsert(articles, { onConflict: 'id' }).select();
   return { data, error };
 };
 
@@ -34,10 +32,8 @@ export const getRecipes = async () => {
 };
 
 export const saveRecipes = async (recipes) => {
-  const { error: delErr } = await supabase.from('recipes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-  if (delErr) return { error: delErr };
   if (!recipes.length) return { data: [] };
-  const { data, error } = await supabase.from('recipes').insert(recipes).select();
+  const { data, error } = await supabase.from('recipes').upsert(recipes, { onConflict: 'id' }).select();
   return { data, error };
 };
 
