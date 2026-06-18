@@ -2,6 +2,9 @@ import { useState, useEffect } from 'react';
 import { ExternalLink, Calendar, ChevronRight } from 'lucide-react';
 import { NEWSROOM_DATA } from '../data/newsroom';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
+import { supabase } from '../lib/supabase';
 
 const CATEGORIES = ['All', 'External News', 'Facebook Updates', 'Internal Stories', 'Announcements'];
 const CATEGORY_COLORS = {
@@ -11,8 +14,17 @@ const CATEGORY_COLORS = {
   'Announcements': '#ffd976',
 };
 
+const CATEGORY_LABELS = {
+  'All': 'All',
+  'External News': { en: 'External News', ms: 'Berita Luar', 'zh-CN': '外部新闻', 'zh-TW': '外部新聞' },
+  'Facebook Updates': { en: 'Facebook Updates', ms: 'Kemas Kini Facebook', 'zh-CN': 'Facebook 更新', 'zh-TW': 'Facebook 更新' },
+  'Internal Stories': { en: 'Internal Stories', ms: 'Cerita Dalaman', 'zh-CN': '内部故事', 'zh-TW': '內部故事' },
+  'Announcements': { en: 'Announcements', ms: 'Pengumuman', 'zh-CN': '公告', 'zh-TW': '公告' },
+};
+
 
 function FbEmbed({ url }) {
+  const { t } = useLanguage();
   const [resolvedUrl, setResolvedUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -51,21 +63,21 @@ function FbEmbed({ url }) {
       });
   }, [url]);
 
-  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>Loading...</div>;
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>{t(T.internalArticle.loading)}</div>;
   if (error || !resolvedUrl || resolvedUrl.includes('/share/')) return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📘</div>
       <p style={{ color: '#333', fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: 600 }}>
-        Facebook Post
+        {t(T.newsroomExtra.fb_post)}
       </p>
       <p style={{ color: '#999', fontSize: '0.8rem', marginBottom: '1rem' }}>
-        Preview not available for this link type
+        {t(T.newsroomExtra.fb_unavailable)}
       </p>
       <a href={url} target="_blank" rel="noopener noreferrer" style={{
         display: 'inline-block', padding: '0.5rem 1.5rem', borderRadius: 999,
         background: '#1877F2', color: '#fff', fontSize: '0.85rem', fontWeight: 600,
         textDecoration: 'none',
-      }}>View on Facebook →</a>
+      }}>{t(T.newsroomExtra.view_fb)}</a>
     </div>
   );
 
@@ -82,6 +94,7 @@ function FbEmbed({ url }) {
 
 function NewsCard({ article, onFbClick }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const handleClick = () => {
     if (article.content_type === 'internal' && article.slug) {
@@ -144,7 +157,7 @@ function NewsCard({ article, onFbClick }) {
           padding: '2px 8px', fontSize: '0.7rem', fontWeight: 500,
           textTransform: 'uppercase', letterSpacing: '0.03em',
         }}>
-          {article.category}
+          {t(CATEGORY_LABELS[article.category] || { en: article.category })}
         </span>
         {article.status === 'draft' && (
           <span style={{
@@ -152,7 +165,7 @@ function NewsCard({ article, onFbClick }) {
             background: '#f59e0b', color: '#000',
             padding: '2px 8px', fontSize: '0.65rem', fontWeight: 500,
             textTransform: 'uppercase',
-          }}>DRAFT</span>
+          }}>{t(T.newsroomExtra.draft_label)}</span>
         )}
       </div>
       <div style={{ padding: '1rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
@@ -187,11 +200,11 @@ function NewsCard({ article, onFbClick }) {
                 fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none',
               }}
             >
-              Read Full Article <ExternalLink size={12} />
+              {t(T.newsroomExtra.read_full)} <ExternalLink size={12} />
             </a>
           ) : (
             <span style={{ color: '#00373e', fontSize: '0.8rem', fontWeight: 500 }}>
-              Read More <ChevronRight size={12} />
+              {t({en:'Read More',ms:'Baca Lagi','zh-CN':'阅读更多','zh-TW':'閱讀更多'})} <ChevronRight size={12} />
             </span>
           )}
           <span style={{ fontSize: '0.7rem', color: '#999', marginLeft: 'auto' }}>
@@ -206,6 +219,7 @@ function NewsCard({ article, onFbClick }) {
 }
 
 export default function NewsroomPage() {
+  const { t } = useLanguage();
   const [activeFilter, setActiveFilter] = useState('All');
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -213,12 +227,11 @@ export default function NewsroomPage() {
   const [sortOrder, setSortOrder] = useState('desc');
 
   useEffect(() => {
-    // Try loading from API first, fallback to local data
-    fetch('/api/newsroom?status=published')
-      .then(r => r.json())
-      .then(d => {
-        if (d.ok && d.articles?.length) {
-          setArticles(d.articles);
+    // Fetch from Supabase, fallback to static data
+    supabase.from('newsroom').select('*').eq('status', 'published').order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setArticles(data);
         } else {
           setArticles(NEWSROOM_DATA.filter(a => a.status === 'published'));
         }
@@ -241,7 +254,7 @@ export default function NewsroomPage() {
     return sortOrder === 'desc' ? db - da : da - db;
   });
 
-  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>Loading...</div>;
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>{t(T.internalArticle.loading)}</div>;
 
   return (
     <main>
@@ -260,10 +273,10 @@ export default function NewsroomPage() {
         />
         <div className="wp-block-cover__inner-container" style={{ position: 'relative', zIndex: 1, textAlign: 'center', padding: '2rem 1rem' }}>
           <h1 style={{ fontSize: 'clamp(29.768px, 1.861rem + ((1vw - 3.2px) * 2.526), 52px)', fontWeight: 600, color: '#03081e', margin: 0 }}>
-            Newsroom
+            {t(T.newsroom.heading)}
           </h1>
           <p style={{ fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.682), 20px)', color: '#555', maxWidth: 500, margin: '0.75rem auto 0' }}>
-            Company Milestones & Partnerships
+            {t(T.newsroom.subtitle)}
           </p>
         </div>
       </section>
@@ -279,7 +292,7 @@ export default function NewsroomPage() {
               fontSize: '0.85rem', fontWeight: activeFilter === cat ? 600 : 400,
               cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s',
             }}>
-              {cat}
+              {cat === 'All' ? t(T.newsroomExtra.all) : t(CATEGORY_LABELS[cat])}
             </button>
           ))}
           </div>
@@ -290,7 +303,7 @@ export default function NewsroomPage() {
             border: '1px solid #d1d5db', background: '#fff',
             color: '#555', fontSize: '0.75rem', cursor: 'pointer',
           }}>
-            {sortOrder === 'desc' ? '↓ Newest First' : '↑ Oldest First'}
+            {sortOrder === 'desc' ? '↓ ' + t(T.newsroomExtra.sort_newest) : '↑ ' + t(T.newsroomExtra.sort_oldest)}
           </button>
         </div>
       </section>
@@ -299,7 +312,7 @@ export default function NewsroomPage() {
       <section style={{ padding: '3rem 1rem', background: '#fff' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto' }}>
           {filtered.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#999', padding: '3rem 0' }}>No articles found.</p>
+            <p style={{ textAlign: 'center', color: '#999', padding: '3rem 0' }}>{t(T.newsroom.no_articles)}</p>
           ) : (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.5rem' }}>
               {filtered.map(article => (
@@ -334,7 +347,7 @@ export default function NewsroomPage() {
             />
             <p style={{ textAlign: 'center', marginTop: '0.75rem', fontSize: '0.8rem' }}>
               <a href={fbModal} target="_blank" rel="noopener noreferrer" style={{ color: '#1877F2' }}>
-                Open on Facebook →
+                {t({en:'Open on Facebook →',ms:'Buka di Facebook →','zh-CN':'在 Facebook 上打开 →','zh-TW':'在 Facebook 上打開 →'})}
               </a>
             </p>
           </div>

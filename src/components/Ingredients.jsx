@@ -1,17 +1,18 @@
 import { PRODUCT_IMAGES } from '../data/content';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 export default function Ingredients() {
+  const { t } = useLanguage();
   return (
     <section className="section-ingredients" style={{ background: '#fff' }}>
       <div className="container-narrow" style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <h2 className="text-section-title" style={{ color: '#000' }}>
-          Our Products
+          {t(T.ingredients.heading)}
         </h2>
         <div className="spacer-30" />
         <p className="text-body" style={{ color: '#000', maxWidth: 600, margin: '0 auto' }}>
-          Crafted with care using the finest ingredients. Our tempeh chips are made from
-          premium soybeans, blended with traditional spices and modern innovation.
-          100% plant-based, gluten-free, and packed with protein.
+          {t(T.ingredients.desc)}
         </p>
       </div>
 
@@ -34,7 +35,7 @@ export default function Ingredients() {
             >
               <img
                 src={src}
-                alt={`Tem Tem Sabah product ${i + 1}`}
+                alt={t({en:'Tem Tem Sabah product','ms':'Produk Tem Tem Sabah','zh-CN':'Tem Tem Sabah 产品','zh-TW':'Tem Tem Sabah 產品'}) + ' ' + (i + 1)}
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 loading="lazy"
               />
@@ -45,11 +46,11 @@ export default function Ingredients() {
 
       <div className="container-narrow" style={{ marginTop: '3rem', textAlign: 'center' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.75rem' }}>
-          <span className="value-tag">100% Plant-Based</span>
-          <span className="value-tag">Gluten Free</span>
-          <span className="value-tag">No Preservatives</span>
-          <span className="value-tag">High Protein</span>
-          <span className="value-tag">Made in Sabah</span>
+          <span className="value-tag">{t(T.ingredients.plant_based)}</span>
+          <span className="value-tag">{t(T.ingredients.gluten_free)}</span>
+          <span className="value-tag">{t(T.ingredients.no_preservatives)}</span>
+          <span className="value-tag">{t(T.ingredients.high_protein)}</span>
+          <span className="value-tag">{t(T.ingredients.made_in_sabah)}</span>
         </div>
       </div>
     </section>

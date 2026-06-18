@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
-import ContactPage from './pages/ContactPage';
+import ContactPage from './pages/ContactPage'; // kept for future use
 import NewsroomPage from './pages/NewsroomPage';
 import MoreRecipes from './pages/MoreRecipes';
 import GlobalReachPage from './pages/GlobalReachPage';
@@ -34,11 +34,11 @@ function AppContent() {
       <div className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/global-reach" element={<GlobalReachPage />} />
           <Route path="/newsroom" element={<NewsroomPage />} />
           <Route path="/newsroom/:slug" element={<InternalArticlePage />} />
           <Route path="/more-recipes" element={<MoreRecipes />} />
-          <Route path="/global-reach" element={<GlobalReachPage />} />
+          {/* <Route path="/contact" element={<ContactPage />} /> — hidden, keep for future */}
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/info" element={<InfoPage />} />
         </Routes>

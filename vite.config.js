@@ -2,8 +2,12 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { execSync } from 'child_process'
 
-const gitCommit = execSync('git rev-parse --short HEAD').toString().trim();
-const gitBranch = execSync('git rev-parse --abbrev-ref HEAD').toString().trim();
+let gitCommit = 'dev';
+let gitBranch = 'dev';
+try {
+  gitCommit = execSync('git rev-parse --short HEAD 2>/dev/null').toString().trim() || 'dev';
+  gitBranch = execSync('git rev-parse --abbrev-ref HEAD 2>/dev/null').toString().trim() || 'dev';
+} catch {}
 
 export default defineConfig({
   base: '/temtemsabah/',

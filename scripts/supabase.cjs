@@ -5,7 +5,7 @@ const SUPABASE_URL = 'sqqknubphqvrhtabtmjb.supabase.co';
 const SVC_KEY = process.env.SUPABASE_SERVICE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxcWtudWJwaHF2cmh0YWJ0bWpiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTQ5NTU3MCwiZXhwIjoyMDk3MDcxNTcwfQ.3bE-jhxy8R_Ay9pSXPVE1znDzzi44H0kP7PN7-LiD0A';
 const ANON_KEY = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNxcWtudWJwaHF2cmh0YWJ0bWpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0OTU1NzAsImV4cCI6MjA5NzA3MTU3MH0.N-Gs3GwYVErNdN7zfjS8Z2pi0ikgRHVKdDXJnUwEe-o';
 
-function fetch(path, method, body = null, params = '') {
+function fetch(path, method, body = null, params = '', prefer = 'return=minimal') {
   return new Promise((resolve, reject) => {
     const qs = params ? '?' + params : '';
     const opts = {
@@ -16,7 +16,7 @@ function fetch(path, method, body = null, params = '') {
         'apikey': SVC_KEY,
         'Authorization': 'Bearer ' + SVC_KEY,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal',
+        'Prefer': prefer,
       },
     };
     if (body) opts.headers['Content-Length'] = Buffer.byteLength(body);
@@ -43,22 +43,15 @@ module.exports = {
   },
   getArticle: (slug) => fetch(`newsroom?slug=eq.${encodeURIComponent(slug)}`, 'GET'),
   saveArticles: async (articles) => {
-    // Delete all, re-insert
-    await fetch('newsroom', 'DELETE');
-    if (articles.length) {
-      return fetch('newsroom', 'POST', JSON.stringify(articles));
-    }
-    return { status: 200 };
+    if (!articles.length) return { status: 200 };
+    return fetch('newsroom', 'POST', JSON.stringify(articles), 'on_conflict=id', 'resolution=merge-duplicates');
   },
 
   // Recipes
   getRecipes: () => fetch('recipes?order=created_at', 'GET'),
   saveRecipes: async (recipes) => {
-    await fetch('recipes', 'DELETE');
-    if (recipes.length) {
-      return fetch('recipes', 'POST', JSON.stringify(recipes));
-    }
-    return { status: 200 };
+    if (!recipes.length) return { status: 200 };
+    return fetch('recipes', 'POST', JSON.stringify(recipes), 'on_conflict=id', 'resolution=merge-duplicates');
   },
 
   // Content

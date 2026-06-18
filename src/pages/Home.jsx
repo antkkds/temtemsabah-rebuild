@@ -11,7 +11,7 @@ export default function Home() {
       <Features />
       <Mission />
       <Team />
-      <Contact />
+      {/* <Contact /> — hidden, keep for future use */}
     </main>
   );
 }

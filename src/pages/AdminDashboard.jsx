@@ -98,8 +98,34 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ background: '#0f1219', minHeight: '100vh', color: '#e0e6ed' }}>
+      {/* Mobile responsive CSS */}
+      <style>{`
+        @media (max-width: 640px) {
+          .adm-tabbar { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; padding: 0.5rem 0.75rem !important; gap: 0.3rem !important; }
+          .adm-tabbar > button { white-space: nowrap; font-size: 0.75rem !important; padding: 0.3rem 0.6rem !important; }
+          .adm-tabbar .adm-user { display: none; }
+          .adm-stats { flex-wrap: wrap; gap: 0.3rem !important; font-size: 0.7rem !important; }
+          .adm-card { flex-direction: row !important; align-items: center !important; gap: 0.5rem !important; padding: 0.5rem !important; }
+          .adm-card img { width: 36px !important; height: 36px !important; display: block !important; flex-shrink: 0; }
+          .adm-card-actions { align-self: flex-end; margin-top: -1.5rem; }
+          .adm-list-wrap { padding: 0.75rem !important; }
+          .adm-form-wrap { padding: 0.75rem !important; }
+          .adm-filter-bar { flex-direction: column; }
+          .adm-filter-bar > div { min-width: 100% !important; }
+          .adm-filter-bar select { width: 100% !important; min-width: unset !important; }
+          .adm-grid-2 { grid-template-columns: 1fr !important; }
+          .adm-grid-3 { grid-template-columns: 1fr !important; }
+          .adm-btn-group { flex-direction: column; gap: 0.5rem; }
+          .adm-btn-group > button { width: 100%; text-align: center; justify-content: center; }
+          .adm-section-title { font-size: 1rem !important; }
+          .adm-msg { font-size: 0.7rem !important; }
+          .adm-backup-table { overflow-x: auto; }
+        }
+        .adm-flex-wrap { flex-wrap: wrap; }
+        .adm-gap-sm { gap: 0.3rem; }
+      `}</style>
       {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', background: '#1a1f2e', borderBottom: '1px solid #2a3040' }}>
+      <div className="adm-tabbar" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem', background: '#1a1f2e', borderBottom: '1px solid #2a3040' }}>
         <button onClick={() => setTab('newsroom')} style={{
           padding: '0.4rem 1rem', borderRadius: 6, border: 'none',
           background: tab === 'newsroom' ? '#00373e' : 'transparent',
@@ -126,7 +152,7 @@ export default function AdminDashboard() {
           color: tab === 'globalreach' ? 'white' : '#9ca3af', cursor: 'pointer', fontSize: '0.85rem'
         }}>🌍 Global</button>
         <div style={{ flex: 1 }} />
-        {user && <span style={{ fontSize: '0.75rem', color: '#6b7280', marginRight: '0.5rem' }}>{user.email}</span>}
+        {user && <span className="adm-user" style={{ fontSize: '0.75rem', color: '#6b7280', marginRight: '0.5rem' }}>{user.email}</span>}
         {msg && <span style={{ fontSize: '0.8rem', color: '#7fd962' }}>{msg}</span>}
         <button onClick={logout} style={{
           display: 'flex', alignItems: 'center', gap: 4, padding: '0.4rem 0.75rem',
@@ -143,7 +169,7 @@ export default function AdminDashboard() {
               if (a.id && articles.find(x => x.id === a.id)) {
                 updated = articles.map(x => x.id === a.id ? { ...x, ...a, updated_at: new Date().toISOString() } : x);
               } else {
-                updated = [...articles, { ...a, id: 'n-' + Date.now(), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }];
+                updated = [...articles, { ...a, id: crypto.randomUUID ? crypto.randomUUID() : ('n-' + Date.now()), created_at: new Date().toISOString(), updated_at: new Date().toISOString() }];
               }
               await doSaveArticles(updated);
               setView('list');
@@ -176,7 +202,18 @@ export default function AdminDashboard() {
             if (r.id && recipes.find(x => x.id === r.id)) {
               updated = recipes.map(x => x.id === r.id ? r : x);
             } else {
-              updated = [...recipes, { ...r, id: 'r-' + Date.now() }];
+              updated = [...recipes, {
+                ...r,
+                id: crypto.randomUUID ? crypto.randomUUID() : ('r-' + Date.now()),
+                recipe_id: r.recipe_id || r.title?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 80) || 'recipe-' + Date.now(),
+                image: r.image || '',
+                thumbnail: r.thumbnail || '',
+                type: r.type || '',
+                cuisine: r.cuisine || '',
+                nutrition: r.nutrition || null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+              }];
             }
             await doSaveRecipes(updated);
             setView('list');
@@ -185,9 +222,9 @@ export default function AdminDashboard() {
           onCancel={() => { setView('list'); setEditingRecipe(null); }}
         />
       ) : tab === 'recipes' ? (
-        <div style={{ padding: '1.5rem', maxWidth: 900, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h2 style={{ fontSize: '1.1rem' }}>🍽 Recipes Manager</h2>
+        <div className="adm-list-wrap" style={{ padding: '1.5rem', maxWidth: 900, margin: '0 auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <h2 className="adm-section-title" style={{ fontSize: '1.1rem' }}>🍽 Recipes Manager</h2>
             <button onClick={() => {
               setEditingRecipe({ id: '', title: 'New Recipe', subtitle: '', image: '', thumbnail: '',
                 type: '', cuisine: '', prep: '', cook: '', servings: 4, cost: '', description: '',
@@ -198,7 +235,7 @@ export default function AdminDashboard() {
             }}><Plus size={14} /> Add Recipe</button>
           </div>
           {recipes.map(r => (
-            <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem',
+            <div key={r.id} className="adm-card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem',
               marginBottom: '0.5rem', borderRadius: 6, background: '#1a1f2e', border: '1px solid #2a3040' }}>
               <img src={r.thumbnail || r.image} alt="" style={{ width: 40, height: 40, borderRadius: 4, objectFit: 'cover', background: '#0f1219' }}
                 onError={e => e.target.style.display = 'none'} />
@@ -276,7 +313,7 @@ export default function AdminDashboard() {
                     <div style={{ fontWeight: 500 }}>{u.name} <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>({u.email})</span></div>
                     <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>Role: {u.role} | Permissions: {Object.entries(u.permissions||{}).filter(([,v]) => v).map(([k]) => k).join(', ')}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div className="adm-flex-wrap" style={{ display: 'flex', gap: '0.5rem' }}>
                     <button onClick={() => setEditingUser(u)} style={{ background: 'none', border: 'none', color: '#59c2ff', cursor: 'pointer' }}><Pencil size={14} /></button>
                     {u.id !== crmUsers.find(x => x.role === 'admin')?.id && <button onClick={async () => {
                       if (!confirm('Delete ' + u.email + '?')) return;
@@ -317,10 +354,10 @@ function ArticleList({ articles, search, setSearch, filterType, setFilterType, f
   const STATUS_COLORS = { published: '#7fd962', draft: '#f59e0b', scheduled: '#59c2ff' };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: 1000, margin: '0 auto' }}>
+    <div className="adm-list-wrap" style={{ padding: '1.5rem', maxWidth: 1000, margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h2 style={{ fontSize: '1.1rem' }}>📰 Newsroom Manager</h2>
+        <h2 className="adm-section-title" style={{ fontSize: '1.1rem' }}>📰 Newsroom Manager</h2>
         <button onClick={onAdd} style={{
           display: 'flex', alignItems: 'center', gap: 4, padding: '0.4rem 1rem',
           borderRadius: 6, border: 'none', background: '#00373e', color: 'white', cursor: 'pointer', fontSize: '0.85rem'
@@ -328,7 +365,7 @@ function ArticleList({ articles, search, setSearch, filterType, setFilterType, f
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+      <div className="adm-filter-bar" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#6b7280' }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..."
@@ -350,7 +387,7 @@ function ArticleList({ articles, search, setSearch, filterType, setFilterType, f
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', fontSize: '0.8rem', color: '#6b7280' }}>
+      <div className="adm-stats" style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', fontSize: '0.8rem', color: '#6b7280' }}>
         <span>Total: <strong style={{ color: '#e0e6ed' }}>{articles.length}</strong></span>
         <span>Published: <strong style={{ color: '#7fd962' }}>{articles.filter(a => a.status === 'published').length}</strong></span>
         <span>Drafts: <strong style={{ color: '#f59e0b' }}>{articles.filter(a => a.status === 'draft').length}</strong></span>
@@ -363,7 +400,7 @@ function ArticleList({ articles, search, setSearch, filterType, setFilterType, f
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map(a => (
-            <div key={a.id} style={{
+            <div key={a.id} className="adm-card" style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.6rem 0.75rem',
               borderRadius: 6, background: '#1a1f2e', border: '1px solid #2a3040',
             }}>
@@ -504,7 +541,7 @@ function ArticleForm({ article, onSave, onCancel }) {
           </h3>
           <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Paste any article URL → auto-fills all fields</span>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div className="adm-flex-wrap" style={{ display: 'flex', gap: '0.5rem' }}>
           <input
             value={autoUrl}
             onChange={e => setAutoUrl(e.target.value)}
@@ -605,7 +642,7 @@ function ArticleForm({ article, onSave, onCancel }) {
 
         <div>
           <label style={label}>Featured Image URL</label>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div className="adm-flex-wrap" style={{ display: 'flex', gap: '0.5rem' }}>
             <input value={e.featured_image} onChange={v => update('featured_image', v.target.value)} placeholder="https://temtemsabah.com/wp-content/uploads/..." style={{ ...inp, flex: 1 }} />
             {e.featured_image && (
               <img src={e.featured_image} alt="preview" style={{ width: 60, height: 60, borderRadius: 4, objectFit: 'cover', background: '#0f1219' }}

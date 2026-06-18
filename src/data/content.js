@@ -7,7 +7,7 @@ export const SITE = {
   headline: 'Delicious Tempeh Chips From Land Below The Wind',
   subheadline: 'MALAYSIA . SINGAPORE . BRUNEI . TAIWAN',
   cta: {
-    text: 'Where To Buy',
+    text: 'Order Now',
     url: 'https://linktr.ee/Keropok_Tempeh_TemTemSabah',
   },
 };

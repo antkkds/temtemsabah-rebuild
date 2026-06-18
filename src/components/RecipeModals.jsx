@@ -1,6 +1,10 @@
 import { X } from 'lucide-react';
 
-export function RecipeDetailModal({ recipe, onClose }) {
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
+
+export function RecipeDetailModal({ recipe, onClose, onVideo }) {
+  const { t } = useLanguage();
   if (!recipe) return null;
   return (
     <div onClick={onClose} style={{
@@ -41,7 +45,7 @@ export function RecipeDetailModal({ recipe, onClose }) {
           
           {/* Ingredients */}
           <h3 style={{ fontSize: 'clamp(15.747px, 0.984rem + ((1vw - 3.2px) * 0.938), 24px)', fontWeight: 600, color: '#00373e', marginBottom: '0.75rem' }}>
-            Ingredients
+            {t(T.recipes.ingredients)}
           </h3>
           {recipe.ingredients && recipe.ingredients.map((group, gi) => (
             <div key={gi} style={{ marginBottom: '1rem' }}>
@@ -65,7 +69,7 @@ export function RecipeDetailModal({ recipe, onClose }) {
           
           {/* Instructions */}
           <h3 style={{ fontSize: 'clamp(15.747px, 0.984rem + ((1vw - 3.2px) * 0.938), 24px)', fontWeight: 600, color: '#00373e', marginBottom: '0.75rem' }}>
-            Instructions
+            {t(T.recipes.instructions)}
           </h3>
           <ol style={{ paddingLeft: '1.25rem', lineHeight: 1.8 }}>
             {recipe.instructions && recipe.instructions.map((step, i) => (

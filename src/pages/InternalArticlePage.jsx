@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Calendar, User } from 'lucide-react';
 import { NEWSROOM_DATA } from '../data/newsroom';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 export default function InternalArticlePage() {
+  const { t } = useLanguage();
   const { slug } = useParams();
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,11 +29,11 @@ export default function InternalArticlePage() {
       });
   }, [slug]);
 
-  if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading...</div>;
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center' }}>{t(T.internalArticle.loading)}</div>;
   if (!article) return (
     <div style={{ padding: '4rem 1rem', textAlign: 'center' }}>
-      <h2>Article not found</h2>
-      <Link to="/newsroom" style={{ color: '#00373e' }}>← Back to Newsroom</Link>
+      <h2>{t(T.internalArticle.not_found)}</h2>
+      <Link to="/newsroom" style={{ color: '#00373e' }}>{t(T.internalArticle.back)}</Link>
     </div>
   );
 
@@ -38,7 +41,7 @@ export default function InternalArticlePage() {
     <main itemScope itemType="https://schema.org/Article">
       <article style={{ maxWidth: 700, margin: '0 auto', padding: '3rem 1rem' }}>
         <Link to="/newsroom" style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#00373e', fontSize: '0.85rem', textDecoration: 'none', marginBottom: '1.5rem' }}>
-          <ArrowLeft size={14} /> Back to Newsroom
+          <ArrowLeft size={14} /> {t(T.internalArticle.back)}
         </Link>
 
         {article.featured_image && (
@@ -57,41 +60,28 @@ export default function InternalArticlePage() {
             {article.category}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: '#9ca3af' }}>
-            <Calendar size={12} /> {article.publish_date}
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: '#9ca3af' }}>
-            <User size={12} /> {article.author}
+            <Calendar size={14} />
+            <time dateTime={article.publish_date}>{article.publish_date}</time>
+            {article.author && <><User size={14} />{article.author}</>}
           </span>
         </div>
 
         <h1 itemProp="headline" style={{
-          fontSize: 'clamp(29.768px, 1.861rem + ((1vw - 3.2px) * 2.526), 52px)',
-          fontWeight: 600, color: '#000', margin: 0, marginBottom: '1rem', lineHeight: 1.2,
+          fontSize: 'clamp(22px, 1.375rem + ((1vw - 3.2px) * 1.926), 40px)',
+          fontWeight: 700, color: '#03081e', lineHeight: 1.3, marginBottom: '1.5rem',
         }}>
           {article.title}
         </h1>
 
-        <p itemProp="description" style={{
-          fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.682), 20px)',
-          color: '#555', lineHeight: 1.6, marginBottom: '2rem',
-        }}>
-          {article.excerpt}
-        </p>
-
-        {article.full_content && (
-          <div itemProp="articleBody" style={{
-            fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.682), 20px)',
-            color: '#333', lineHeight: 1.8,
-          }}>
-            {article.full_content.split('\n\n').map((para, i) => (
-              <p key={i} style={{ marginBottom: '1rem' }}>{para}</p>
-            ))}
-          </div>
+        {article.excerpt && (
+          <p style={{ fontSize: '1.05rem', color: '#555', lineHeight: 1.7, marginBottom: '2rem' }}>
+            {article.excerpt}
+          </p>
         )}
 
-        {/* SEO Schema */}
-        <meta itemProp="datePublished" content={article.publish_date} />
-        <meta itemProp="author" content={article.author} />
+        <div itemProp="articleBody" style={{ fontSize: '1rem', color: '#333', lineHeight: 1.9 }}
+          dangerouslySetInnerHTML={{ __html: article.full_content || '' }}
+        />
       </article>
     </main>
   );

@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 const NUTRITION = {
   servingPerPackage: 3,
@@ -26,45 +27,35 @@ const NUTRITION = {
   ],
 };
 
-const langNames = { en: 'English', ms: 'Bahasa Melayu', zh: '中文' };
+const nutrLang = (code) => code === 'zh-CN' || code === 'zh-TW' ? 'zh' : code;
 
 export default function InfoPage() {
   const navigate = useNavigate();
-  const [lang, setLang] = useState('en');
+  const { lang, t } = useLanguage();
+
+  const nLang = nutrLang(lang);
 
   return (
     <div style={{ minHeight: '80vh', background: '#f8f6f1', padding: '2rem 1rem' }}>
       <div style={{ maxWidth: 700, margin: '0 auto' }}>
-        {/* Title + Language switcher inline */}
+        {/* Back + Title */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#00373e', margin: 0 }}>
-            Steam Tempeh
+            {t(T.info_page.title)}
           </h1>
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
-            {Object.entries(langNames).map(([code, name]) => (
-              <button key={code} onClick={() => setLang(code)} style={{
-                padding: '0.2rem 0.5rem', borderRadius: 4, border: 'none',
-                background: lang === code ? '#00373e' : 'transparent',
-                color: lang === code ? '#fff' : '#666',
-                fontSize: '0.7rem', cursor: 'pointer', fontWeight: lang === code ? 600 : 400,
-              }}>
-                {name}
-              </button>
-            ))}
-          </div>
         </div>
         <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: '1.5rem' }}>
-          {lang === 'en' ? 'Nutrition Information' : lang === 'ms' ? 'Maklumat Pemakanan' : '营养信息'}
+          {t(T.info_page.nutrition)}
         </p>
 
         {/* Serving info */}
         <div style={{ background: '#fff', borderRadius: 12, padding: '1rem 1.25rem', marginBottom: '1rem', border: '1px solid #e5e7eb' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#666', marginBottom: '0.5rem' }}>
-            <span>{lang === 'en' ? 'Serving Per Package' : lang === 'ms' ? 'Hidangan Setiap Bungkusan' : '每包份数'}</span>
+            <span>{t({en:'Serving Per Package',ms:'Hidangan Setiap Bungkusan','zh-CN':'每包份数','zh-TW':'每包份數'})}</span>
             <span style={{ fontWeight: 600, color: '#000' }}>{NUTRITION.servingPerPackage}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#666' }}>
-            <span>{lang === 'en' ? 'Serving Size' : lang === 'ms' ? 'Setiap Hidangan' : '每份'}</span>
+            <span>{t(T.info_page.serving_size)}</span>
             <span style={{ fontWeight: 600, color: '#000' }}>{NUTRITION.servingSize}</span>
           </div>
         </div>
@@ -77,9 +68,9 @@ export default function InfoPage() {
           textTransform: 'uppercase', letterSpacing: '0.03em',
           borderBottom: '2px solid #00373e',
         }}>
-          <span>{lang === 'en' ? 'Nutrient' : lang === 'ms' ? 'Nutrisi' : '营养素'}</span>
-          <span style={{ textAlign: 'right' }}>{lang === 'en' ? 'Per Serving' : lang === 'ms' ? 'Setiap Hidangan' : '每份'}</span>
-          <span style={{ textAlign: 'right' }}>{lang === 'en' ? 'Per 100g' : lang === 'ms' ? 'Setiap 100g' : '每100克'}</span>
+          <span>{t({en:'Nutrient',ms:'Nutrisi','zh-CN':'营养素','zh-TW':'營養素'})}</span>
+          <span style={{ textAlign: 'right' }}>{t(T.info_page.per_serving)}</span>
+          <span style={{ textAlign: 'right' }}>{t(T.info_page.per_100g)}</span>
         </div>
 
         {/* Nutrition rows */}
@@ -92,7 +83,7 @@ export default function InfoPage() {
             background: i % 2 === 0 ? '#fff' : '#fafafa',
           }}>
             <span style={{ color: '#333' }}>
-              {item.name[lang]}
+              {item.name[nLang] || item.name.en}
             </span>
             <span style={{ textAlign: 'right', fontWeight: 500, color: '#000' }}>
               {item.perServing}
@@ -107,8 +98,20 @@ export default function InfoPage() {
 
         {/* Footer */}
         <p style={{ fontSize: '0.75rem', color: '#999', textAlign: 'center', marginTop: '1.5rem' }}>
-          Tem Tem Sabah &copy; {new Date().getFullYear()} &mdash; Mum Approved Snacks
+          {t({en:'Tem Tem Sabah © {year} — Mum Approved Snacks',ms:'Tem Tem Sabah © {year} — Makanan Ringan Sah Ibu','zh-CN':'Tem Tem Sabah © {year} — 妈妈认可的小吃','zh-TW':'Tem Tem Sabah © {year} — 媽媽認可的小吃'}).replace('{year}', String(new Date().getFullYear()))}
         </p>
+
+        {/* Back button */}
+        <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+          <button onClick={() => navigate(-1)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '0.6rem 1.5rem', borderRadius: 8,
+            border: '1px solid #d1d5db', background: '#fff',
+            color: '#00373e', fontSize: '0.85rem', cursor: 'pointer',
+          }}>
+            <ArrowLeft size={14} /> {t(T.info_page.back)}
+          </button>
+        </div>
       </div>
     </div>
   );

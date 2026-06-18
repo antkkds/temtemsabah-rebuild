@@ -17,7 +17,7 @@ export default function Header() {
     { href: '/', label: T.nav.home },
     { href: '/newsroom', label: T.nav.newsroom },
     { href: '/more-recipes', label: T.nav.recipes },
-    { href: '/contact', label: T.nav.contact },
+    { href: '/global-reach', label: T.nav.globalReach },
   ];
 
   return (

@@ -1,6 +1,9 @@
 import Contact from '../components/Contact';
+import { useLanguage } from '../context/LanguageContext';
+import T from '../data/translations';
 
 export default function ContactPage() {
+  const { t } = useLanguage();
   return (
     <main>
       {/* Hero Image Cover */}
@@ -23,7 +26,7 @@ export default function ContactPage() {
           <h1 style={{
             fontFamily: 'Prata, serif', fontSize: 'clamp(28px, 3.5vw, 48px)',
             color: '#fff', fontWeight: 700,
-          }}>Get in Touch</h1>
+          }}>{t(T.contactPage.heading)}</h1>
         </div>
       </div>
       <Contact />

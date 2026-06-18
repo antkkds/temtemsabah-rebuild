@@ -194,6 +194,13 @@ export default function AdminSettings({ setMsg }) {
 
   return (
     <div style={{ padding: '1.5rem', maxWidth: 700, margin: '0 auto' }}>
+      <style>{`
+        @media (max-width: 640px) {
+          .adm-backup-preview { overflow-x: auto; font-size: 0.6rem !important; }
+          .adm-settings-section { padding: 0.75rem !important; }
+          .adm-settings-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
       {/* ── API Key & Model Settings ── */}
       <div style={{ background: '#1a1f2e', padding: '1.5rem', borderRadius: 8, border: '1px solid #2a3040', marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.1rem', margin: '0 0 1rem' }}>🔑 API Settings</h2>

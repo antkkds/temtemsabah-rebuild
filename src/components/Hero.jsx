@@ -91,7 +91,7 @@ export default function Hero() {
             letterSpacing: '0.05em',
           }}
         >
-          <strong>MALAYSIA . SINGAPORE . BRUNEI . TAIWAN</strong>
+          <strong>{t(T.subheadline)}</strong>
         </h5>
 
         <h2
@@ -105,7 +105,7 @@ export default function Hero() {
             margin: 0,
           }}
         >
-          &ldquo;Mum Approved Snacks&rdquo;
+          &ldquo;{t(T.tagline)}&rdquo;
         </h2>
 
         <div style={{ height: 50 }} aria-hidden="true" className="wp-block-spacer" />
@@ -133,17 +133,23 @@ export default function Hero() {
               target="_blank"
               rel="noopener noreferrer"
               style={{
-                color: '#fff',
-                backgroundColor: '#000',
-                padding: '15px 25px',
+                color: '#ffffff',
+                background: '#00373e',
+                padding: '12px 36px',
                 border: 'none',
-                borderRadius: 0,
+                borderRadius: 9999,
                 textDecoration: 'none',
                 display: 'inline-block',
-                fontSize: 'clamp(14px, 0.875rem + ((1vw - 3.2px) * 0.455), 18px)',
-                fontWeight: 200,
+                fontSize: 'clamp(15px, 0.95rem + 0.2vw, 18px)',
+                fontWeight: 600,
                 cursor: 'pointer',
+                boxShadow: '0 2px 12px rgba(0, 55, 62, 0.3)',
+                transition: 'all 0.2s ease',
+                lineHeight: 1.4,
+                letterSpacing: '0.01em',
               }}
+              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 55, 62, 0.4)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 12px rgba(0, 55, 62, 0.3)'; e.currentTarget.style.transform = 'translateY(0)'; }}
             >
               {SITE.cta.text}
             </a>
