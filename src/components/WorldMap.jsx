@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
+import { FALLBACK_REACH } from '../data/globalReach';
 import * as d3 from 'd3';
 import * as topojson from 'topojson-client';
 import worldData from 'world-atlas/countries-110m.json';
@@ -40,8 +41,9 @@ export default function WorldMap() {
   const currentTransform = useRef(d3.zoomIdentity);
 
   useEffect(() => {
-    supabase.from('global_reach').select('*').order('country_name', { ascending: true })
-      .then(({ data }) => setCountries(data || []))
+    withTimeout(supabase.from('global_reach').select('*').order('country_name', { ascending: true }))
+      .then(({ data }) => setCountries(data && data.length ? data : FALLBACK_REACH))
+      .catch(() => setCountries(FALLBACK_REACH))
       .finally(() => setLoading(false));
   }, []);
 

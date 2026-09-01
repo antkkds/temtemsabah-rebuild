@@ -4,7 +4,7 @@ import { NEWSROOM_DATA } from '../data/newsroom';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import T from '../data/translations';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 
 const CATEGORIES = ['All', 'External News', 'Facebook Updates', 'Internal Stories', 'Announcements'];
 const CATEGORY_COLORS = {
@@ -51,20 +51,17 @@ function FbEmbed({ url }) {
         setLoading(false);
       })
       .catch(() => {
-        // Fallback: direct embed
+        // Fallback: direct embed via plugins/post.php (supports share/r/ Reels too)
         let cleanUrl = url.replace('//web.facebook.com/', '//www.facebook.com/');
         // Only strip tracking params, NOT essential params like fbid
         cleanUrl = cleanUrl.replace(/[?&]ref=[^&]*/g, '').replace(/[?&]rdid=[^&]*/g, '').replace(/[?&]share_url=[^&]*/g, '');
-        if (cleanUrl.includes('/share/')) {
-          setError(true);
-        }
         setResolvedUrl(cleanUrl);
         setLoading(false);
       });
   }, [url]);
 
   if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#999' }}>{t(T.internalArticle.loading)}</div>;
-  if (error || !resolvedUrl || resolvedUrl.includes('/share/')) return (
+  if (error || !resolvedUrl) return (
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>📘</div>
       <p style={{ color: '#333', fontSize: '0.9rem', marginBottom: '0.75rem', fontWeight: 600 }}>
@@ -83,7 +80,7 @@ function FbEmbed({ url }) {
 
   return (
     <iframe
-      src={`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(resolvedUrl)}&show_text=true&width=340`}
+      src={`https://www.facebook.com/plugins/${resolvedUrl.includes('/videos/') ? 'video' : 'post'}.php?href=${encodeURIComponent(resolvedUrl)}&show_text=true&width=340`}
       style={{ width: '100%', height: 400, border: 'none', overflow: 'hidden' }}
       scrolling="no"
       allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
@@ -228,7 +225,7 @@ export default function NewsroomPage() {
 
   useEffect(() => {
     // Fetch from Supabase, fallback to static data
-    supabase.from('newsroom').select('*').eq('status', 'published').order('created_at', { ascending: false })
+    withTimeout(supabase.from('newsroom').select('*').eq('status', 'published').order('created_at', { ascending: false }))
       .then(({ data }) => {
         if (data && data.length > 0) {
           setArticles(data);

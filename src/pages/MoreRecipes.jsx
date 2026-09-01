@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { RECIPES as STATIC_RECIPES } from '../data/recipes';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
 import { Clock, Users, ChefHat, Utensils } from 'lucide-react';
 import { RecipeDetailModal, VideoModal } from '../components/RecipeModals';
 import { useLanguage } from '../context/LanguageContext';
@@ -14,7 +14,7 @@ export default function MoreRecipes() {
   const [videoModal, setVideoModal] = useState(null);
 
   useEffect(() => {
-    supabase.from('recipes').select('*').order('created_at', { ascending: false })
+    withTimeout(supabase.from('recipes').select('*').order('created_at', { ascending: false }))
       .then(({ data }) => {
         if (data && data.length > 0) {
           // Map DB format → UI format

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, withTimeout } from '../lib/supabase';
+import { FALLBACK_REACH } from '../data/globalReach';
 import WorldMap from '../components/WorldMap';
 import { useLanguage } from '../context/LanguageContext';
 import T from '../data/translations';
@@ -22,8 +23,9 @@ export default function GlobalReachPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from('global_reach').select('*').order('country_name', { ascending: true })
-      .then(({ data }) => setCountries(data || []))
+    withTimeout(supabase.from('global_reach').select('*').order('country_name', { ascending: true }))
+      .then(({ data }) => setCountries(data && data.length ? data : FALLBACK_REACH))
+      .catch(() => setCountries(FALLBACK_REACH))
       .finally(() => setLoading(false));
   }, []);
 

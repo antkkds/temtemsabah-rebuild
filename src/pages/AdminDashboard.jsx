@@ -602,7 +602,15 @@ function ArticleForm({ article, onSave, onCancel }) {
         {e.content_type === 'external' && (
           <div>
             <label style={label}>External URL *</label>
-            <input value={e.external_url} onChange={v => update('external_url', v.target.value)} placeholder="https://www.example.com/article" style={inp} />
+            <input value={e.external_url} onChange={v => {
+              const url = v.target.value;
+              // Auto-switch to Facebook type if URL is a Facebook link
+              if (url.includes('facebook.com') || url.includes('fb.com') || url.includes('fb.watch')) {
+                setE(prev => ({ ...prev, content_type: 'facebook', facebook_url: url, external_url: '', category: 'Facebook Updates' }));
+                return;
+              }
+              update('external_url', url);
+            }} placeholder="https://www.example.com/article" style={inp} />
           </div>
         )}
 
@@ -718,6 +726,7 @@ const label = { display: 'block', marginBottom: 4, fontSize: '0.8rem', color: '#
 // ── Recipe Edit Form ──
 function RecipeEditForm({ recipe, onSave, onCancel }) {
   const [e, setE] = useState(recipe);
+  const [uploading, setUploading] = useState(false);
   const update = (f, v) => setE({ ...e, [f]: v });
 
   return (
@@ -734,11 +743,13 @@ function RecipeEditForm({ recipe, onSave, onCancel }) {
           <input value={e.image} onChange={v => update('image', v.target.value)} placeholder="https://..." style={{ ...inp, flex: 1, minWidth: '200px' }} />
           <input type="file" accept="image/*" style={{ display: 'none' }} id="recipe-img-upload" onChange={async (ev) => {
             const file = ev.target.files?.[0]; if (!file) return;
+            setUploading(true);
             const { url, error } = await uploadImage(file, 'recipe');
             if (url) update('image', url);
             ev.target.value = '';
+            setUploading(false);
           }} />
-          <button onClick={() => document.getElementById('recipe-img-upload').click()} style={{ padding: '0.4rem 0.7rem', borderRadius: 6, border: '1px solid #2a3040', background: '#1a1f2e', color: '#e0e6ed', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>📁 Browse</button>
+          <button onClick={() => document.getElementById('recipe-img-upload').click()} disabled={uploading} style={{ padding: '0.4rem 0.7rem', borderRadius: 6, border: '1px solid #2a3040', background: uploading ? '#0f1219' : '#1a1f2e', color: uploading ? '#6b7280' : '#e0e6ed', cursor: uploading ? 'not-allowed' : 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{uploading ? '⏳' : '📁 Browse'}</button>
           {e.image && (
             <img src={e.image} alt="" style={{ width: 48, height: 48, borderRadius: 4, objectFit: 'cover', background: '#0f1219' }}
               onError={e => e.target.style.display = 'none'} />

@@ -5,6 +5,13 @@ const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 
 export const supabase = createClient(SUPABASE_URL, ANON_KEY);
 
+// Fast-fail wrapper: prevents UI hangs when Supabase is unreachable (project offline/deleted)
+export const withTimeout = (promise, ms = 4000) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Supabase request timed out')), ms)),
+  ]);
+
 // Current session helpers
 export const getSession = () => supabase.auth.getSession();
 export const login = (email, password) => supabase.auth.signInWithPassword({ email, password });
@@ -37,10 +44,41 @@ export const saveRecipes = async (recipes) => {
   return { data, error };
 };
 
-// Upload image to Supabase Storage
+// Client-side image compression: resize to max 1200px, JPEG q0.8
+function compressImage(file, maxW = 1200) {
+  return new Promise((resolve, reject) => {
+    if (file.size < 200 * 1024 || !file.type.startsWith('image/')) {
+      return resolve(file); // skip small files and non-images
+    }
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w <= maxW && file.size < 1024 * 1024) {
+        URL.revokeObjectURL(img.src);
+        return resolve(file); // small enough already
+      }
+      if (w > maxW) { h = h * maxW / w; w = maxW; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      c.toBlob(blob => {
+        URL.revokeObjectURL(img.src);
+        if (blob) resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+        else resolve(file);
+      }, 'image/jpeg', 0.8);
+    };
+    img.onerror = () => resolve(file);
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+// Upload image to Supabase Storage (auto-compresses large images)
 export const uploadImage = async (file, folder = 'recipe') => {
-  const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-  const { data, error } = await supabase.storage.from(folder).upload(fileName, file, {
+  if (file.size > 10 * 1024 * 1024) return { error: 'File too large. Max 10MB.' };
+  const compressed = await compressImage(file);
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2,6)}.jpg`;
+  const { data, error } = await supabase.storage.from(folder).upload(fileName, compressed, {
     cacheControl: '3600',
     upsert: false,
   });
